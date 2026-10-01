@@ -1,0 +1,42 @@
+# Run once by hand (Actions tab > Make Android upload key > Run workflow).
+# Creates the Google Play upload key inside GitHub and hands it to you as a private,
+# one-day download. Nothing is printed to the log. Afterwards, add the three values
+# from secrets.txt as repository secrets and delete the downloaded files.
+name: Make Android upload key
+
+on: workflow_dispatch
+
+jobs:
+  key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Generate key
+        run: |
+          set +x
+          mkdir -p out
+          PW="$(openssl rand -hex 20)"
+          keytool -genkeypair -keystore out/embergem-upload.jks -alias embergem -keyalg RSA -keysize 2048 \
+            -validity 10000 -storepass "$PW" -keypass "$PW" -dname "CN=Embergem, O=Embergem" >/dev/null 2>&1
+          {
+            echo "Add these three repository secrets (Settings > Secrets and variables > Actions),"
+            echo "then delete this folder. Keep embergem-upload.jks somewhere safe as a backup."
+            echo
+            echo "ANDROID_KEY_ALIAS"
+            echo "embergem"
+            echo
+            echo "ANDROID_KEYSTORE_PASSWORD"
+            echo "$PW"
+            echo
+            echo "ANDROID_KEYSTORE_B64 (one long line)"
+            base64 -w0 out/embergem-upload.jks
+            echo
+          } > out/secrets.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-upload-key
+          path: out/
+          retention-days: 1
