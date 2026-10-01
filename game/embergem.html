@@ -65,6 +65,7 @@ button.mode small{font-family:var(--body);font-style:italic;font-size:14px;color
 .card.col h2{margin-bottom:6px}
 button.link{background:none;border:0;color:var(--gold);font-family:var(--body);font-style:italic;font-size:17px;letter-spacing:.02em;padding:6px 10px}
 button:disabled{opacity:.45}
+.nudge{animation:glow 2.4s ease-in-out infinite;margin-bottom:-4px}@keyframes glow{50%{text-shadow:0 0 12px var(--gold);color:var(--gold-hi)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <div class="app">
@@ -76,6 +77,7 @@ button:disabled{opacity:.45}
   <div class="goals" id="goals" aria-live="polite"></div>
   <div class="stage" id="stage"><canvas id="cv" aria-label="Game board. Drag a gem from the tray onto the board."></canvas></div>
   <div class="foot" id="foot">Fill rows or columns to claim the gems the dragon wants.</div>
+  <button class="link nudge" id="dailyNudge" type="button" hidden></button>
   <div class="boosts" id="boosts">
     <button class="boost" id="bUndo" type="button" aria-label="Undo last move, 3 embers"><span>↺</span>Undo<small>3</small></button>
     <button class="boost" id="bClaw" type="button" aria-label="Dragon claw: shatter a 3 by 3 area, 6 embers"><span>✧</span>Claw<small>6</small></button>
@@ -528,7 +530,8 @@ function shareText(text){
 }
 // ---------- embers and boosts ----------
 function spend(c){if((store.embers||0)<c){$("foot").textContent=monet.canReward()?"Not enough embers. Tap ✦ to watch a short ad for 10 more.":"Not enough embers yet. Finish chambers to earn more.";haptic.tick();return false}store.embers-=c;save();boostUI();return true}
-function boostUI(){
+function dailyNudge(){const done=store.daily&&store.daily[todayKey()],b=$("dailyNudge");b.hidden=!!done||mode==="daily";b.textContent=`✦ Today's puzzle, Daily #${dailyNo()}, is ready`}
+function boostUI(){dailyNudge();
   const e=store.embers||0;$("embers").textContent=e;
   $("bUndo").disabled=over||!undoSnap;$("bClaw").disabled=over||!board.some(r=>r.some(v=>v>=0));$("bFresh").disabled=over||freshUsed;
   $("bClaw").classList.toggle("on",aiming);$("earn").hidden=!monet.canReward();
@@ -560,7 +563,7 @@ $("modeBtn").onclick=()=>{const d=store.daily&&store.daily[todayKey()],st=dragon
   $("mEndless").innerHTML=`Endless<small>Best ${(store.best||0).toLocaleString()} · scored like other block games</small>`;
   $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} gems hoarded${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
   $("lbBtn").hidden=!gc.available();$("modes").hidden=false};
-$("mDaily").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
+$("mDaily").onclick=()=>setMode("daily");$("dailyNudge").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
 $("closeModes").onclick=()=>{$("modes").hidden=true};$("lbBtn").onclick=()=>gc.show();
 $("restart").onclick=newGame;
 $("settingsBtn").onclick=()=>{$("shopMsg").textContent="";renderSkins();monet.refresh();$("settings").hidden=false};
