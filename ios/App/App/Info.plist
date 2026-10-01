@@ -52,7 +52,7 @@
 		<string>armv7</string>
 	</array>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-3061972842166099~4975909285</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>Embergem shows a few ads between chambers. Allowing tracking lets them be more relevant to you; saying no still shows ads.</string>
 	<key>SKAdNetworkItems</key>

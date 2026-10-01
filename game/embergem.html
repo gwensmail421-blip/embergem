@@ -578,9 +578,12 @@ $("haptics").textContent=store.haptics?"Haptics on":"Haptics off";
 // Calm by design: no ads during play. An interstitial can appear between chambers (from
 // Chamber III, at most every other chamber); "Fresh pieces" is an optional rewarded ad.
 // Buying Remove Ads drops the interstitials and makes Fresh pieces free (once per chamber).
-const ADS={ // Google's public test IDs until Embergem's own AdMob units are filled in
-  interstitial:"ca-app-pub-3940256099942544/4411468910",
-  rewarded:"ca-app-pub-3940256099942544/1712485313"};
+// Embergem's own AdMob units on iPhone; Android keeps Google's public test IDs until it has its own AdMob app
+const ADS=window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios"?{
+  interstitial:"ca-app-pub-3061972842166099/6560453692",
+  rewarded:"ca-app-pub-3061972842166099/4457034537"}:{
+  interstitial:"ca-app-pub-3940256099942544/1033173712",
+  rewarded:"ca-app-pub-3940256099942544/5224354917"};
 const NOADS_ID="com.embergem.app.removeads";
 const monet=(()=>{
   const C=window.Capacitor,native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
