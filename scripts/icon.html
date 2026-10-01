@@ -1,0 +1,37 @@
+<!doctype html><canvas id=c width=1024 height=1024></canvas><script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=1024,C=512;
+// background: deep night with a warm ember bloom in the middle
+let g=x.createRadialGradient(C,C*1.02,40,C,C,720);g.addColorStop(0,'#3a1410');g.addColorStop(.42,'#160b14');g.addColorStop(1,'#07060a');x.fillStyle=g;x.fillRect(0,0,W,W);
+// the coiled dragon: a scaled ring around the gem
+const R=372,T=62;
+x.save();x.lineWidth=T;x.strokeStyle='#1d1822';x.beginPath();x.arc(C,C,R,0,Math.PI*2);x.stroke();
+for(let i=0;i<120;i++){const a=i/120*Math.PI*2;for(let r=0;r<3;r++){const rr=R-T/2+10+r*20,ox=C+Math.cos(a+(r%2)*.026)*rr,oy=C+Math.sin(a+(r%2)*.026)*rr;
+  x.save();x.translate(ox,oy);x.rotate(a+Math.PI/2);const sg=x.createLinearGradient(0,-10,0,10);sg.addColorStop(0,'#4a3f55');sg.addColorStop(1,'#16121b');x.fillStyle=sg;
+  x.beginPath();x.moveTo(-14,-6);x.quadraticCurveTo(0,16,14,-6);x.quadraticCurveTo(0,0,-14,-6);x.fill();x.restore()}}
+x.lineWidth=3;x.strokeStyle='rgba(200,167,106,.7)';x.beginPath();x.arc(C,C,R+T/2,0,Math.PI*2);x.stroke();x.strokeStyle='rgba(200,167,106,.35)';x.beginPath();x.arc(C,C,R-T/2,0,Math.PI*2);x.stroke();
+// spines
+for(let i=0;i<36;i++){const a=i/36*Math.PI*2;x.save();x.translate(C+Math.cos(a)*(R+T/2),C+Math.sin(a)*(R+T/2));x.rotate(a);x.fillStyle='#8a7350';x.beginPath();x.moveTo(0,-9);x.lineTo(30,0);x.lineTo(0,9);x.fill();x.restore()}
+x.restore();
+// the gem: a brilliant cut seen from above, with fire inside
+const gr=250,pts=n=>[...Array(n)].map((_,i)=>{const a=-Math.PI/2+i/n*Math.PI*2;return[C+Math.cos(a)*gr,C+Math.sin(a)*gr]});
+const outer=pts(8),table=outer.map(([px,py])=>[C+(px-C)*.52,C+(py-C)*.52]);
+x.save();x.shadowColor='#ff7a2a';x.shadowBlur=120;x.fillStyle='#7a1a12';x.beginPath();outer.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.closePath();x.fill();x.restore();
+const fc=['#5a0f10','#a8261a','#d9461f','#8a1c14','#6b1210','#c0381c','#e2602a','#9a2216'];
+for(let i=0;i<8;i++){const a=outer[i],b=outer[(i+1)%8],t=table[i],u=table[(i+1)%8],m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  x.fillStyle=fc[i];x.beginPath();x.moveTo(...a);x.lineTo(...m);x.lineTo(...t);x.closePath();x.fill();
+  x.fillStyle=fc[(i+3)%8];x.beginPath();x.moveTo(...m);x.lineTo(...b);x.lineTo(...u);x.closePath();x.fill();
+  x.fillStyle=fc[(i+5)%8];x.beginPath();x.moveTo(...m);x.lineTo(...u);x.lineTo(...t);x.closePath();x.fill()}
+// the table glows like a coal
+g=x.createRadialGradient(C,C+20,10,C,C,gr*.6);g.addColorStop(0,'#ffe2a0');g.addColorStop(.35,'#ff9a3c');g.addColorStop(1,'#b8301a');
+x.fillStyle=g;x.beginPath();table.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.closePath();x.fill();
+// facet edges
+x.strokeStyle='rgba(255,220,170,.35)';x.lineWidth=2.5;x.beginPath();outer.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.closePath();x.stroke();
+x.beginPath();table.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.closePath();x.stroke();
+for(let i=0;i<8;i++){x.beginPath();x.moveTo(...outer[i]);x.lineTo(...table[i]);x.stroke()}
+// a dragon's slit pupil reflected in the fire
+x.save();x.globalAlpha=.85;x.fillStyle='#1a0606';x.beginPath();x.ellipse(C,C+6,15,78,0,0,Math.PI*2);x.fill();x.restore();
+// glint
+x.save();x.globalAlpha=.9;x.fillStyle='#fff6e0';x.beginPath();x.moveTo(C-118,C-150);x.lineTo(C-60,C-178);x.lineTo(C-88,C-128);x.closePath();x.fill();x.restore();
+// embers rising
+for(let i=0;i<26;i++){const ex=C+(Math.sin(i*12.9)*.5)*560,ey=C-120-((i*73)%300),s=2+(i%4);x.fillStyle=`rgba(255,${140+(i*7)%80},60,${.35+(i%5)*.1})`;x.shadowColor='#ff8a3a';x.shadowBlur=12;x.beginPath();x.arc(ex,ey,s,0,Math.PI*2);x.fill()}
+</script>

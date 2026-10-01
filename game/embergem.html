@@ -1,0 +1,455 @@
+<title>Embergem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Marcellus+SC&display=swap">
+<style>
+/* Layout: one dark screen. Score above, the 8x8 reliquary as the hero, three gems waiting in the tray below. */
+:root{
+  --void:#09080c; --slate:#14121a; --well:#1b1823; --rim:#2c2733;
+  --gold:#c8a76a; --gold-hi:#f1dcae; --mist:#8b8496; --bone:#ece4d4;
+  --display:"Marcellus SC","Cinzel",Georgia,serif;
+  --body:"Cormorant Garamond",Garamond,Georgia,serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--void);color:var(--bone);font-family:var(--body);overflow:hidden;
+  background-image:radial-gradient(ellipse at 50% 35%,#1a1622 0%,var(--void) 65%)}
+[hidden]{display:none!important}
+.app{height:100%;padding-top:max(12px,env(safe-area-inset-top))!important;padding-bottom:max(12px,env(safe-area-inset-bottom))!important;display:flex;flex-direction:column;align-items:center;padding-inline:16px;padding-block:12px;box-sizing:border-box;gap:8px}
+header{width:100%;max-width:460px;display:grid;grid-template-columns:1fr auto 1fr;align-items:end}
+.brand{font-family:var(--display);color:var(--gold);letter-spacing:.14em;font-size:13px;align-self:center}
+.chamber{text-align:center;font-family:var(--display);font-size:clamp(24px,7vw,32px);line-height:1;color:var(--bone)}
+.goals{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;min-height:26px}
+.goal{display:flex;align-items:center;gap:6px;font-size:19px;font-variant-numeric:tabular-nums;color:var(--bone);transition:opacity .4s}
+.goal i{width:18px;height:18px;border-radius:5px;display:block;box-shadow:inset 0 0 0 1px rgba(241,220,174,.3)}
+.goal small{color:var(--mist);font-size:15px}
+.goal.done{opacity:.45}
+.goal.done b::after{content:" ✓";color:var(--gold)}
+.goal.bump b{animation:gb .4s}
+@keyframes gb{40%{color:var(--gold-hi);text-shadow:0 0 10px var(--gold)}}
+.stars{font-size:34px;letter-spacing:.2em;color:var(--gold)}
+.stars i{font-style:normal;opacity:.22}
+.stars i.on{opacity:1}
+.best{justify-self:end;text-align:right;color:var(--mist);font-size:15px;font-variant-numeric:tabular-nums;line-height:1.1}
+.best b{display:block;color:var(--gold);font-weight:600;font-size:18px}
+.stage{flex:1;min-height:0;width:100%;display:flex;justify-content:center;align-items:center}
+canvas{touch-action:none;display:block;max-width:100%}
+.foot{color:var(--mist);font-style:italic;font-size:16px;min-height:1.3em;text-align:center}
+button{font-family:var(--display);font-size:15px;letter-spacing:.12em;color:var(--void);background:var(--gold);border:0;border-radius:999px;padding:10px 22px;cursor:pointer}
+button.ghost{background:transparent;color:var(--bone);border:1px solid var(--rim)}
+button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+.veil{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding-inline:16px;background:color-mix(in srgb,var(--void) 80%,transparent);animation:fade .8s ease both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.card{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;max-width:360px}
+.card h2{font-family:var(--display);font-weight:400;color:var(--gold);font-size:28px;margin:0;letter-spacing:.06em}
+.card .big{font-family:var(--display);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+.card p{margin:0;color:var(--mist);font-size:17px}
+.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.row button.ghost{padding:10px 16px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<div class="app">
+  <header>
+    <div class="brand">EMBERGEM</div>
+    <div class="chamber" id="chamber">Chamber I</div>
+    <div class="best">Moves<b id="moves">0</b></div>
+  </header>
+  <div class="goals" id="goals" aria-live="polite"></div>
+  <div class="stage" id="stage"><canvas id="cv" aria-label="Game board. Drag a gem from the tray onto the board."></canvas></div>
+  <div class="foot" id="foot">Fill rows or columns to claim the gems the dragon wants.</div>
+  <div class="row"><button class="ghost" id="sound" type="button">Sound on</button><button class="ghost" id="haptics" type="button">Haptics on</button><button class="ghost" id="restart" type="button">Restart</button></div>
+</div>
+<canvas id="fx" aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;z-index:4"></canvas>
+<div class="veil" id="veil" hidden></div>
+<script>
+const SIL="data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAPAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+const $=id=>document.getElementById(id),cv=$("cv"),ctx=cv.getContext("2d");
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function load(){try{return JSON.parse((localStorage.getItem("embergem")||localStorage.getItem("hoard"))||"{}")}catch(e){return{}}}
+function save(){try{localStorage.setItem("embergem",JSON.stringify(store))}catch(e){}}
+const store=Object.assign({best:0,sound:true,haptics:true},load());
+
+// Jewel tones: [base, light, deep]
+const GEMS=[
+ {n:"garnet",c:["#8c1d3c","#e0587c","#3d0a1a"]},
+ {n:"amethyst",c:["#5a2d8c","#b083e0","#24103d"]},
+ {n:"emerald",c:["#17694f","#5fd1a4","#06291f"]},
+ {n:"sapphire",c:["#1f437f","#6c9ae6","#0a1a36"]},
+ {n:"topaz",c:["#9a6b22","#f0c56a","#3d2808"]},
+ {n:"moonstone",c:["#5d6a80","#c9d4e6","#222834"]},
+];
+const SHAPES=[
+ [[0,0]],
+ [[0,0],[1,0]],[[0,0],[0,1]],
+ [[0,0],[1,0],[2,0]],[[0,0],[0,1],[0,2]],
+ [[0,0],[1,0],[2,0],[3,0]],[[0,0],[0,1],[0,2],[0,3]],
+ [[0,0],[1,0],[2,0],[3,0],[4,0]],[[0,0],[0,1],[0,2],[0,3],[0,4]],
+ [[0,0],[1,0],[0,1],[1,1]],
+ [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]],
+ [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],[[0,0],[1,0],[0,1],[1,1],[0,2],[1,2]],
+ [[0,0],[1,0],[0,1]],[[0,0],[1,0],[1,1]],[[0,0],[0,1],[1,1]],[[1,0],[0,1],[1,1]],
+ [[0,0],[0,1],[0,2],[1,2]],[[1,0],[1,1],[1,2],[0,2]],[[0,0],[1,0],[2,0],[0,1]],[[0,0],[1,0],[2,0],[2,1]],
+ [[0,0],[1,0],[2,0],[1,1]],[[1,0],[0,1],[1,1],[2,1]],
+ [[0,0],[1,0],[1,1],[2,1]],[[1,0],[2,0],[0,1],[1,1]],
+ [[0,0],[0,1],[0,2],[1,0],[2,0]],[[0,0],[1,0],[2,0],[2,1],[2,2]],
+];
+const N=8;
+let board,tray,score,combo,movesSinceClear,drag=null,particles=[],texts=[],flashes=[],over=false,shake=0,settles=new Map(),pops=[],flyers=[],glints=[],nextGlint=0,lastSnap="";
+const fx=document.getElementById("fx"),fctx=fx.getContext("2d");
+let W,H,DPR,cell,bx,by,trayY,slotW;
+
+function layout(){
+  const st=$("stage").getBoundingClientRect();
+  W=Math.min(st.width,460);H=Math.min(st.height,W*1.47);W=Math.min(W,H/1.47);
+  DPR=window.devicePixelRatio||1;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+"px";cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  cell=W/(N+1.5);bx=cell*.75;by=cell*1.95;trayY=by+cell*N+cell*1.25;slotW=W/3;RING=null;
+}
+// ---------- haptics ----------
+// Android: navigator.vibrate. iPhone (iOS 18+): Safari has no vibrate, but toggling a native
+// <input switch> plays the system tap. WebKit only allows it inside a real tap/release, so
+// gesture handlers wrap their work in haptic.during(); taps requested elsewhere are skipped on iPhone.
+const haptic=(()=>{let live=0;const canVibe=typeof navigator.vibrate==="function";
+  // inside the App Store build, Capacitor gives us the real Taptic Engine
+  const nat=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.Haptics;
+  function native(p,kind){const n=Array.isArray(p)?p:[p];if(kind==="success"){nat.notification({type:"SUCCESS"}).catch(()=>{});return}if(n.length>1){nat.impact({style:"MEDIUM"}).catch(()=>{});setTimeout(()=>nat.impact({style:"LIGHT"}).catch(()=>{}),90);return}nat.impact({style:n[0]<=8?"LIGHT":n[0]<=16?"MEDIUM":"HEAVY"}).catch(()=>{})}
+  function ios(){try{const l=document.createElement("label");l.ariaHidden="true";l.style.display="none";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");l.appendChild(i);document.head.appendChild(l);l.click();document.head.removeChild(l)}catch(e){}}
+  function fire(p,kind){if(store.haptics===false)return;if(nat){native(p,kind);return}if(canVibe){try{navigator.vibrate(p)}catch(e){}return}
+    if(!live)return;const n=Array.isArray(p)?Math.ceil(p.length/2):1;ios();for(let i=1;i<Math.min(n,3);i++)setTimeout(ios,i*120)}
+  function during(fn){return function(e){live++;try{return fn.call(this,e)}finally{live--}}}
+  return{fire,during,tick:()=>fire(6),tap:()=>fire(12),thud:()=>fire(22),burst:()=>fire([16,50,16,50,30]),success:()=>fire([20,60,20,60,50],"success"),supported:()=>!!nat||canVibe||"ontouchend" in window,native:!!nat};
+})();
+// ---------- chambers ----------
+let lvl=store.level||1,goals=[],moves=0,par=0;
+const roman=n=>{const v=[[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];let r="";for(const[a,b]of v)while(n>=a){r+=b;n-=a}return r};
+const MOTIFS=[
+ (x,y)=>Math.abs(x-3.5)+Math.abs(y-3.5)===4,                                   // diamond ring
+ (x,y)=>(x<2||x>5)&&(y<2||y>5),                                                // four corner caches
+ (x,y)=>((x===3||x===4)&&(y<2||y>5))||((y===3||y===4)&&(x<2||x>5)),           // cross arms
+ (x,y)=>(x===y||x===7-y)&&!(x>2&&x<5),                                         // saltire
+ (x,y)=>(x===0||y===0||x===7||y===7)&&(x+y)%2===0,                             // studded frame
+ (x,y)=>((x===1||x===6)&&y>0&&y<7||(y===1||y===6)&&x>0&&x<7)&&(x+y)%3!==0,     // broken ring
+];
+function setupChamber(n){
+  const r=(()=>{let s=n*9301+49297;return()=>{s=(s*233280+49297)%2147483647;return s/2147483647}})();
+  const k=n<3?1:n<6?2:3,pool=[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k);
+  const each=Math.min(40,k===1?8+3*n:k===2?6+2*n:5+Math.round(1.5*n));
+  goals=pool.map(g=>({g,need:each,got:0,shown:0}));
+  par=Math.ceil(each*k/2.2)+3;
+  if(n>=3){const m=MOTIFS[(n-3)%MOTIFS.length];for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(m(x,y))board[y][x]=r()<.6?pool[Math.floor(r()*k)]:Math.floor(r()*GEMS.length)}
+}
+function renderGoals(bumpG){
+  $("goals").innerHTML=goals.map(q=>{const c=GEMS[q.g].c;return`<span class="goal${(q.shown??q.got)>=q.need?" done":""}${bumpG&&bumpG.has(q.g)?" bump":""}" title="${GEMS[q.g].n}"><i style="background:linear-gradient(135deg,${c[1]},${c[0]} 50%,${c[2]})"></i><b>${Math.min(q.shown??q.got,q.need)}</b><small>/ ${q.need}</small></span>`}).join("");
+  $("moves").textContent=moves;$("chamber").textContent=`Chamber ${roman(lvl)}`;
+}
+function claim(cells,pureBonus,fromXY){ // cells: gem ids cleared
+  const bumped=new Set();cells.forEach(g=>{const q=goals.find(q=>q.g===g);if(q&&q.got<q.need){q.got=Math.min(q.need,q.got+(pureBonus?2:1));bumped.add(g)}});
+  renderGoals();
+  if(!over&&goals.every(q=>q.got>=q.need)){over=true;haptic.success();setTimeout(chamberDone,1500)}
+}
+function chamberDone(){
+  const stars=moves<=par?3:moves<=Math.ceil(par*1.4)?2:1;
+  store.stars=store.stars||{};if(!reduced)for(let j=0;j<90;j++)particles.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*2,vy:Math.random()*3,s:cell*(.1+Math.random()*.14),c:GEMS[goals[j%goals.length].g].c[j%2],life:120+Math.random()*60,rot:Math.random()*6,vr:(Math.random()-.5)*.2});store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=lvl+1;save();sound.done(stars);
+  const v=$("veil");v.hidden=false;
+  v.innerHTML=`<div class="card"><h2>Chamber ${roman(lvl)} claimed</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
+    <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p>
+    <div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div></div>`;
+  $("nextc").onclick=()=>{lvl++;newGame()};$("again").onclick=newGame;
+}
+function newGame(){board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[]}
+function rnd(a){return a[Math.floor(Math.random()*a.length)]}
+let dealGems=[0,1,2];
+function makePiece(){const s=rnd(SHAPES);return{cells:s,g:rnd(dealGems),w:Math.max(...s.map(c=>c[0]))+1,h:Math.max(...s.map(c=>c[1]))+1}}
+function fits(p,gx,gy){return p.cells.every(([x,y])=>{const X=gx+x,Y=gy+y;return X>=0&&Y>=0&&X<N&&Y<N&&board[Y][X]<0})}
+function anyFit(p){for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y))return true;return false}
+function dealTray(){
+  dealGems=goals.length?[...goals.map(q=>q.g),...goals.map(q=>q.g),Math.floor(Math.random()*GEMS.length)]:[0,1,2].map(()=>Math.floor(Math.random()*GEMS.length));
+  for(let t=0;t<12;t++){const tr=[makePiece(),makePiece(),makePiece()];if(!board||tr.some(anyFit)||t===11)return tr}
+}
+function updScore(){$("moves").textContent=moves}
+
+// ---------- the dragon coiled around the hoard ----------
+let eyeO=0,nextBreath=0,smoke=[],contentUntil=0;
+function ringPoints(){
+  const c=cell,off=c*.38,x0=bx-off,y0=by-off,w=c*N+2*off,h=w,rc=c*.95,cx=x0+w/2,pts=[],st=c*.06;
+  const line=(ax,ay,bx2,by2)=>{const l=Math.hypot(bx2-ax,by2-ay),n=Math.max(1,Math.round(l/st));for(let i=0;i<n;i++)pts.push([ax+(bx2-ax)*i/n,ay+(by2-ay)*i/n])};
+  const arc=(ax,ay,r,a0,a1)=>{const n=Math.max(2,Math.round(Math.abs(a1-a0)*r/st));for(let i=0;i<n;i++){const a=a0+(a1-a0)*i/n;pts.push([ax+Math.cos(a)*r,ay+Math.sin(a)*r])}};
+  arc(cx+c*.5,y0-c*.02,c*.5,Math.PI,Math.PI*.5+Math.PI*.0); // neck curling down from the head
+  line(cx+c*.5,y0+c*.48-c*.5,x0+w-rc,y0);
+  arc(x0+w-rc,y0+rc,rc,-Math.PI/2,0);line(x0+w,y0+rc,x0+w,y0+h-rc);
+  arc(x0+w-rc,y0+h-rc,rc,0,Math.PI/2);line(x0+w-rc,y0+h,x0+rc,y0+h);
+  arc(x0+rc,y0+h-rc,rc,Math.PI/2,Math.PI);line(x0,y0+h-rc,x0,y0+rc);
+  arc(x0+rc,y0+rc,rc,Math.PI,Math.PI*1.5);line(x0+rc,y0,cx-c*.75,y0);
+  arc(cx-c*.75,y0+c*.28,c*.28,-Math.PI/2,-Math.PI*.05); // tail tip curling under the head
+  return pts;
+}
+let RING=null,dragonHead=null;
+function drawDragon(now){
+  if(!RING)RING=ringPoints();
+  const c=cell,n=RING.length,cxB=bx+c*N/2,cyB=by+c*N/2;
+  const rate=.0016+.0022*eyeO,breath=1+(.025+.03*eyeO)*Math.sin(now*rate);
+  const F=RING.map((p,i)=>{const a=RING[Math.max(0,i-1)],b=RING[Math.min(n-1,i+1)];let tx=b[0]-a[0],ty=b[1]-a[1];const l=Math.hypot(tx,ty)||1;tx/=l;ty/=l;let nx=-ty,ny=tx;if((p[0]-cxB)*nx+(p[1]-cyB)*ny<0){nx=-nx;ny=-ny}return{x:p[0],y:p[1],tx,ty,nx,ny}});
+  const ws=F.map((f,i)=>{const s=i/(n-1);return c*.5*breath*(s<.04?.72+.28*s/.04:s>.68?Math.max(.1,1-(s-.68)/.32*.9):1)});
+  const path=(k,dx=0,dy=0)=>{ctx.beginPath();F.forEach((f,i)=>{const w=ws[i]*k/2;i?ctx.lineTo(f.x+f.nx*w+dx,f.y+f.ny*w+dy):ctx.moveTo(f.x+f.nx*w+dx,f.y+f.ny*w+dy)});for(let i=n-1;i>=0;i--){const f=F[i],w=ws[i]*k/2;ctx.lineTo(f.x-f.nx*w+dx,f.y-f.ny*w+dy)}ctx.closePath()};
+  ctx.save();
+  // dorsal spines on the outer edge
+  for(let i=Math.round(n*.05);i<n*.95;i+=Math.round(c*.42/(c*.06))){const f=F[i],w=ws[i],hgt=c*.24*(w/(c*.5));
+    ctx.beginPath();ctx.moveTo(f.x+f.nx*w*.35-f.tx*c*.12,f.y+f.ny*w*.35-f.ty*c*.12);ctx.lineTo(f.x+f.nx*(w*.5+hgt)-f.tx*c*.14,f.y+f.ny*(w*.5+hgt)-f.ty*c*.14);ctx.lineTo(f.x+f.nx*w*.35+f.tx*c*.1,f.y+f.ny*w*.35+f.ty*c*.1);ctx.closePath();
+    ctx.fillStyle="#211c28";ctx.fill();ctx.strokeStyle="rgba(200,167,106,.35)";ctx.lineWidth=1;ctx.stroke()}
+  ctx.fillStyle="rgba(0,0,0,.55)";path(1.08,c*.04,c*.07);ctx.fill();
+  ctx.fillStyle="#0e0c12";path(1);ctx.fill();
+  ctx.fillStyle="#221e2a";path(.74);ctx.fill();
+  ctx.save();path(1);ctx.clip();
+  // overlapping scales, catching a little gold
+  ctx.lineWidth=Math.max(.7,c*.016);
+  for(let i=1;i<n-1;i+=2){const f=F[i],w=ws[i];for(let r=-2;r<=2;r++){const o=(r+((i/2|0)%2?.5:0))*w*.2;if(Math.abs(o)>w*.48)continue;const x=f.x+f.nx*o,y=f.y+f.ny*o,L=c*.06;
+    ctx.beginPath();ctx.moveTo(x-f.tx*L+f.nx*L*.8,y-f.ty*L+f.ny*L*.8);ctx.quadraticCurveTo(x+f.tx*L*.3,y+f.ty*L*.3,x-f.tx*L-f.nx*L*.8,y-f.ty*L-f.ny*L*.8);
+    ctx.strokeStyle=Math.abs(r)<1?"rgba(200,167,106,.22)":"rgba(0,0,0,.45)";ctx.stroke()}}
+  ctx.fillStyle="rgba(150,120,200,.12)";path(.2,-c*.02,-c*.03);ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle="rgba(0,0,0,.7)";ctx.lineWidth=1.2;path(1);ctx.stroke();
+  // tail spade
+  const tf=F[n-1];ctx.save();ctx.translate(tf.x,tf.y);ctx.rotate(Math.atan2(tf.ty,tf.tx));ctx.beginPath();ctx.moveTo(c*.22,0);ctx.lineTo(0,-c*.12);ctx.lineTo(-c*.05,0);ctx.lineTo(0,c*.12);ctx.closePath();ctx.fillStyle="#221e2a";ctx.fill();ctx.strokeStyle="rgba(200,167,106,.4)";ctx.stroke();ctx.restore();
+  dragonHead=[F[0],breath];
+  ctx.restore();
+}
+function drawDragonHead(f,now,breath){
+  const c=cell;
+  ctx.save();ctx.translate(f.x,f.y-c*.05);ctx.rotate(-Math.PI/2);ctx.scale(breath*1.45,breath*1.45);
+  const head=()=>{ctx.beginPath();ctx.moveTo(c*1.02,0);
+    ctx.bezierCurveTo(c*1.02,-c*.1,c*.9,-c*.13,c*.72,-c*.16);ctx.bezierCurveTo(c*.5,-c*.2,c*.36,-c*.34,c*.18,-c*.38);ctx.lineTo(c*.08,-c*.48);ctx.lineTo(c*.02,-c*.36);
+    ctx.bezierCurveTo(-c*.12,-c*.34,-c*.22,-c*.3,-c*.3,-c*.24);ctx.lineTo(-c*.3,c*.24);
+    ctx.bezierCurveTo(-c*.22,c*.3,-c*.12,c*.34,c*.02,c*.36);ctx.lineTo(c*.08,c*.48);ctx.lineTo(c*.18,c*.38);ctx.bezierCurveTo(c*.36,c*.34,c*.5,c*.2,c*.72,c*.16);ctx.bezierCurveTo(c*.9,c*.13,c*.92,c*.1,c*1.02,0);ctx.closePath()};
+  // horns sweeping back
+  [-1,1].forEach(k=>{ctx.beginPath();ctx.moveTo(-c*.02,k*c*.22);ctx.quadraticCurveTo(-c*.3,k*c*.5,-c*.5,k*c*.78);ctx.quadraticCurveTo(-c*.3,k*c*.36,-c*.2,k*c*.08);ctx.closePath();
+    const hg=ctx.createLinearGradient(0,0,-c*.5,k*c*.78);hg.addColorStop(0,"#3a3330");hg.addColorStop(1,"#c9b48a");ctx.fillStyle=hg;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.6)";ctx.lineWidth=1;ctx.stroke()});
+  ctx.fillStyle="rgba(0,0,0,.55)";ctx.save();ctx.translate(-c*.07,c*.05);head();ctx.fill();ctx.restore();
+  const g=ctx.createRadialGradient(c*.3,0,c*.05,c*.3,0,c*.7);g.addColorStop(0,"#3b3446");g.addColorStop(.6,"#211d28");g.addColorStop(1,"#0d0b10");head();ctx.fillStyle=g;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.8)";ctx.lineWidth=1.2;ctx.stroke();
+  ctx.save();head();ctx.clip();ctx.strokeStyle="rgba(200,167,106,.16)";ctx.lineWidth=Math.max(.6,c*.012);
+  for(let x=-.25;x<.95;x+=.09)for(let y=-.32;y<=.32;y+=.09){ctx.beginPath();ctx.arc(c*x,c*y,c*.045,Math.PI*.6,Math.PI*1.4);ctx.stroke()}
+  ctx.strokeStyle="rgba(200,167,106,.35)";ctx.lineWidth=c*.02;ctx.beginPath();ctx.moveTo(c*.95,0);ctx.lineTo(-c*.25,0);ctx.stroke();ctx.restore();
+  // nostrils
+  ctx.fillStyle="#000";[-1,1].forEach(k=>{ctx.beginPath();ctx.ellipse(c*.9,k*c*.075,c*.05,c*.018,k*.4,0,Math.PI*2);ctx.fill()});
+  // eyes: lids open as the hoard fills
+  const o=eyeO;
+  [-1,1].forEach(k=>{const ex=c*.36,ey=k*c*.25;
+    ctx.save();ctx.translate(ex,ey);ctx.rotate(k*.25);
+    const ih=c*(.012+.075*o);
+    ctx.beginPath();ctx.moveTo(-c*.13,0);ctx.quadraticCurveTo(0,-ih*1.6,c*.13,0);ctx.quadraticCurveTo(0,ih*1.6,-c*.13,0);ctx.closePath();
+    const col=o<.6?["#ffd76a","#c26a12"]:["#ff9a4a","#a3121e"];const eg=ctx.createRadialGradient(0,0,0,0,0,c*.13);eg.addColorStop(0,col[0]);eg.addColorStop(1,col[1]);
+    ctx.fillStyle=eg;ctx.shadowColor=col[0];ctx.shadowBlur=c*(.1+.6*o);ctx.fill();ctx.shadowBlur=0;
+    if(o>.08){ctx.beginPath();ctx.ellipse(0,0,c*.012+c*.01*(1-o),ih*1.1,0,0,Math.PI*2);ctx.fillStyle="#050304";ctx.fill()}
+    ctx.strokeStyle="#000";ctx.lineWidth=Math.max(1,c*.02);ctx.beginPath();ctx.moveTo(-c*.13,0);ctx.quadraticCurveTo(0,-ih*1.6,c*.13,0);ctx.quadraticCurveTo(0,ih*1.6,-c*.13,0);ctx.stroke();
+    // brow ridge with spikes
+    ctx.beginPath();ctx.moveTo(c*.16,-k*0);ctx.quadraticCurveTo(0,-k*c*.13-c*.0,-c*.18,-k*c*.04);ctx.lineWidth=c*.045;ctx.strokeStyle="#0d0b10";ctx.stroke();
+    ctx.restore()});
+  ctx.restore();
+  // smoke from the nostrils when it stirs
+  if(eyeO>.45&&!reduced&&Math.random()<.08*eyeO){const nx=f.x,ny=f.y-c*1.45;for(const k of[-1,1])smoke.push({x:nx+k*c*.08,y:ny,vx:k*.15+(Math.random()-.5)*.2,vy:-.35-Math.random()*.3,r:c*.08,life:70})}
+  smoke=smoke.filter(s=>s.life>0);smoke.forEach(s=>{s.x+=s.vx;s.y+=s.vy;s.r+=c*.006;s.life--;ctx.fillStyle=`rgba(140,130,150,${.09*s.life/70})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()});
+}
+function stepDragon(now){
+  let filled=0;for(const r of board)for(const v of r)if(v>=0)filled++;
+  // the dragon never wakes: it only opens a contented eye when you find a pure vein
+  const target=now<contentUntil?.45:0;
+  eyeO+=(target-eyeO)*.04;
+  if(now>nextBreath){sound.breath(eyeO);nextBreath=now+4600}
+}
+
+// ---------- rendering ----------
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function gem(x,y,s,g,alpha=1,glow=0){
+  const [b,l,d]=GEMS[g].c,i=s*0.06,w=s-2*i,r=s*0.16;
+  ctx.save();ctx.globalAlpha=alpha;
+  if(glow){ctx.shadowColor=l;ctx.shadowBlur=glow}
+  const gr=ctx.createLinearGradient(x,y,x+s,y+s);gr.addColorStop(0,l);gr.addColorStop(.45,b);gr.addColorStop(1,d);
+  rr(x+i,y+i,w,w,r);ctx.fillStyle=gr;ctx.fill();ctx.shadowBlur=0;
+  // table facet
+  const f=s*0.24;
+  ctx.beginPath();ctx.moveTo(x+i+f,y+i+f);ctx.lineTo(x+s-i-f,y+i+f);ctx.lineTo(x+s-i-f,y+s-i-f);ctx.lineTo(x+i+f,y+s-i-f);ctx.closePath();
+  const tg=ctx.createLinearGradient(x,y+i+f,x,y+s-i-f);tg.addColorStop(0,"rgba(255,255,255,.22)");tg.addColorStop(1,"rgba(255,255,255,.02)");ctx.fillStyle=tg;ctx.fill();
+  // crown facets
+  ctx.strokeStyle="rgba(255,255,255,.14)";ctx.lineWidth=Math.max(.6,s*0.02);
+  ctx.beginPath();ctx.moveTo(x+i+r*.5,y+i+r*.5);ctx.lineTo(x+i+f,y+i+f);ctx.moveTo(x+s-i-r*.5,y+i+r*.5);ctx.lineTo(x+s-i-f,y+i+f);
+  ctx.moveTo(x+i+r*.5,y+s-i-r*.5);ctx.lineTo(x+i+f,y+s-i-f);ctx.moveTo(x+s-i-r*.5,y+s-i-r*.5);ctx.lineTo(x+s-i-f,y+s-i-f);ctx.stroke();
+  // glint
+  ctx.fillStyle="rgba(255,255,255,.55)";ctx.beginPath();ctx.ellipse(x+i+f*.95,y+i+f*.7,s*0.09,s*0.035,-0.6,0,Math.PI*2);ctx.fill();
+  // gold rim
+  rr(x+i,y+i,w,w,r);ctx.strokeStyle="rgba(241,220,174,.28)";ctx.lineWidth=Math.max(.7,s*0.025);ctx.stroke();
+  ctx.restore();
+}
+function trayPos(k){const p=tray[k];if(!p)return null;const sc=Math.min(0.55,2.6/Math.max(p.w,p.h));const s=cell*sc;const cx=slotW*(k+.5),cy=trayY+(H-trayY)/2;return{x:cx-p.w*s/2,y:cy-p.h*s/2,s}}
+function dropTarget(){
+  if(!drag)return null;const p=drag.p;
+  const gx=Math.round((drag.x-bx)/cell),gy=Math.round((drag.y-by)/cell);
+  return fits(p,gx,gy)?{gx,gy}:null;
+}
+function wouldClear(p,gx,gy){
+  const b=board.map(r=>r.slice());p.cells.forEach(([x,y])=>b[gy+y][gx+x]=p.g);
+  const rows=[],cols=[];for(let i=0;i<N;i++){if(b[i].every(v=>v>=0))rows.push(i);if(b.every(r=>r[i]>=0))cols.push(i)}
+  return{rows,cols};
+}
+function render(now){
+  ctx.clearRect(0,0,W,H);
+  ctx.save();if(shake>0&&!reduced){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85;if(shake<.3)shake=0}
+  stepDragon(now);drawDragon(now);
+  // candlelight breathing behind the hoard
+  const fl=.07+.025*Math.sin(now*.0031)+.015*Math.sin(now*.0117)+(combo>1?.03*Math.min(combo,5):0);
+  const cg=ctx.createRadialGradient(bx+cell*N/2,by+cell*N/2,cell,bx+cell*N/2,by+cell*N/2,cell*N*.8);cg.addColorStop(0,`rgba(255,190,110,${fl})`);cg.addColorStop(1,"rgba(255,190,110,0)");ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
+  // board well
+  rr(bx-6,by-6,cell*N+12,cell*N+12,14);ctx.fillStyle="#110f16";ctx.fill();ctx.strokeStyle="#2c2733";ctx.lineWidth=1;ctx.stroke();
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){rr(bx+x*cell+cell*.06,by+y*cell+cell*.06,cell*.88,cell*.88,cell*.16);ctx.fillStyle="#1b1823";ctx.fill();
+    ctx.strokeStyle="rgba(0,0,0,.5)";ctx.lineWidth=1;ctx.stroke()}
+  const t=dropTarget();let lit=null;
+  if(t){lit=wouldClear(drag.p,t.gx,t.gy)}
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=board[y][x];if(v>=0){const glowing=lit&&(lit.rows.includes(y)||lit.cols.includes(x));
+    const st=settles.get(x+","+y);let sc=1;if(st!==undefined){const k=(now-st)/260;if(k>=1)settles.delete(x+","+y);else if(!reduced)sc=1+.16*Math.sin(k*Math.PI)*(1-k)-.06*Math.sin(k*Math.PI*2)*(1-k)}
+    const sz=cell*sc,o=(cell-sz)/2;gem(bx+x*cell+o,by+y*cell+o,sz,glowing?drag.p.g:v,1,glowing?14:0)}}
+  // gems waiting to pop glow, then burst in sequence
+  pops=pops.filter(q=>{if(now<q.t){const k=1-(q.t-now)/600;gem(bx+q.x*cell,by+q.y*cell,cell,q.g,1,6+8*Math.max(0,k));return true}
+    flashes.push({x:q.x,y:q.y,t:now});sound.pop(q.j,q.pure);if(q.j%3===0)haptic.tick();
+    if(!reduced)for(let j=0;j<5;j++)particles.push({x:bx+(q.x+.5)*cell,y:by+(q.y+.5)*cell,vx:(Math.random()-.5)*7,vy:-Math.random()*6-1,s:cell*(.08+Math.random()*.12),c:GEMS[q.g].c[Math.random()<.5?1:0],life:50+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3});
+    const gi=goals.findIndex(z=>z.g===q.g);if(gi>=0){const chip=document.querySelectorAll("#goals .goal")[gi],cr=cv.getBoundingClientRect();
+      if(chip){const r=chip.getBoundingClientRect();flyers.push({g:q.g,gi,x0:cr.left+bx+(q.x+.5)*cell,y0:cr.top+by+(q.y+.5)*cell,x1:r.left+12,y1:r.top+r.height/2,t:now,d:520+Math.random()*220,bonus:q.pure?2:1})}
+      else goals[gi].shown=Math.min(goals[gi].need,(goals[gi].shown||0)+(q.pure?2:1))}
+    return false});
+  // a glint of light slides across a random gem now and then
+  if(now>nextGlint){nextGlint=now+900+Math.random()*1400;const filled=[];for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(board[y][x]>=0)filled.push([x,y]);if(filled.length&&!reduced){const [x,y]=filled[Math.floor(Math.random()*filled.length)];glints.push({x,y,t:now})}}
+  glints=glints.filter(gl=>now-gl.t<650&&board[gl.y][gl.x]>=0);glints.forEach(gl=>{const k=(now-gl.t)/650,x0=bx+gl.x*cell,y0=by+gl.y*cell;ctx.save();rr(x0+cell*.06,y0+cell*.06,cell*.88,cell*.88,cell*.16);ctx.clip();
+    const p=-cell+k*cell*3;const lg=ctx.createLinearGradient(x0+p,y0,x0+p+cell*.5,y0+cell);lg.addColorStop(0,"rgba(255,255,255,0)");lg.addColorStop(.5,"rgba(255,255,255,.55)");lg.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=lg;ctx.fillRect(x0,y0,cell,cell);ctx.restore()});
+  if(t){drag.p.cells.forEach(([x,y])=>gem(bx+(t.gx+x)*cell,by+(t.gy+y)*cell,cell,drag.p.g,.38))}
+  if(dragonHead)drawDragonHead(dragonHead[0],now,dragonHead[1]);
+  // flashes from clears
+  flashes=flashes.filter(f=>now-f.t<380);flashes.forEach(f=>{const a=1-(now-f.t)/380;ctx.fillStyle=`rgba(255,240,210,${a*.85})`;rr(bx+f.x*cell+cell*.06,by+f.y*cell+cell*.06,cell*.88,cell*.88,cell*.16);ctx.fill()});
+  // tray
+  ctx.strokeStyle="rgba(200,167,106,.18)";ctx.beginPath();ctx.moveTo(W*.15,trayY-cell*.35);ctx.lineTo(W*.85,trayY-cell*.35);ctx.stroke();
+  tray.forEach((p,k)=>{if(!p||(drag&&drag.k===k))return;const tp=trayPos(k);const ok=anyFit(p);p.cells.forEach(([x,y])=>gem(tp.x+x*tp.s,tp.y+y*tp.s,tp.s,p.g,ok?1:.3))});
+  if(drag){const p=drag.p;p.cells.forEach(([x,y])=>gem(drag.x+x*cell,drag.y+y*cell,cell,p.g,.95,8))}
+  // particles
+  particles=particles.filter(q=>q.life>0);
+  particles.forEach(q=>{q.vy+=0.22;q.x+=q.vx;q.y+=q.vy;q.rot+=q.vr;q.life-=1;const a=Math.min(1,q.life/30);
+    ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.rot);ctx.globalAlpha=a;ctx.fillStyle=q.c;ctx.beginPath();ctx.moveTo(0,-q.s);ctx.lineTo(q.s*.6,0);ctx.lineTo(0,q.s);ctx.lineTo(-q.s*.6,0);ctx.closePath();ctx.fill();ctx.restore()});
+  texts=texts.filter(q=>now-q.t<1100);
+  texts.forEach(q=>{const k=(now-q.t)/1100;ctx.save();ctx.globalAlpha=1-k*k;ctx.font=`${q.size}px "Marcellus SC", Georgia, serif`;ctx.textAlign="center";ctx.fillStyle="#f1dcae";ctx.shadowColor="#c8a76a";ctx.shadowBlur=16;ctx.fillText(q.s,q.x,q.y-k*30);ctx.restore()});
+  drawTutorial(now);
+  ctx.restore();
+  drawFlyers(now);
+  requestAnimationFrame(render);
+}
+// first run: a ghost hand shows how to drag a piece from the tray onto the board
+function tutorialTarget(){const k=tray.findIndex(Boolean);if(k<0)return null;const p=tray[k];let best=null;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y)){const w=wouldClear(p,x,y),sc=(w.rows.length+w.cols.length)*100-Math.abs(y-N/2)-Math.abs(x-N/2);if(!best||sc>best.sc)best={k,p,x,y,sc}}return best}
+function drawTutorial(now){
+  if(store.tutored||drag||over||moves>0)return;const t=tutorialTarget();if(!t)return;
+  const T=2600,k=(now%T)/T,ease=k<.18?0:k>.78?1:(()=>{const u=(k-.18)/.6;return u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2})(),fade=k<.08?k/.08:k>.9?(1-k)/.1:1;
+  const sx=slotW*(t.k+.5)-t.p.w*cell/2,sy=trayY+cell*.2,ex=bx+t.x*cell,ey=by+t.y*cell,x=sx+(ex-sx)*ease,y=sy+(ey-sy)*ease;
+  t.p.cells.forEach(([cx,cy])=>gem(x+cx*cell,y+cy*cell,cell,t.p.g,.38*fade,0));
+  const fx_=x+t.p.w*cell/2,fy_=y+t.p.h*cell+cell*.35,press=k>.12&&k<.82;
+  ctx.save();ctx.globalAlpha=.75*fade;ctx.fillStyle="rgba(241,220,174,.18)";ctx.strokeStyle="#f1dcae";ctx.lineWidth=2;ctx.shadowColor="#f1dcae";ctx.shadowBlur=12;
+  ctx.beginPath();ctx.arc(fx_,fy_,cell*(press?.32:.42),0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
+}
+function drawFlyers(now){
+  const w=innerWidth,h=innerHeight,d=window.devicePixelRatio||1;if(fx.width!==w*d||fx.height!==h*d){fx.width=w*d;fx.height=h*d;fx.style.width=w+"px";fx.style.height=h+"px"}
+  fctx.setTransform(d,0,0,d,0,0);fctx.clearRect(0,0,w,h);if(!flyers.length)return;
+  flyers=flyers.filter(f=>{const k=Math.min(1,(now-f.t)/f.d),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    const x=f.x0+(f.x1-f.x0)*e,y=f.y0+(f.y1-f.y0)*e-Math.sin(k*Math.PI)*60,s=cell*(.45-.2*k);
+    const c=GEMS[f.g].c,gr=fctx.createLinearGradient(x-s/2,y-s/2,x+s/2,y+s/2);gr.addColorStop(0,c[1]);gr.addColorStop(.5,c[0]);gr.addColorStop(1,c[2]);
+    fctx.save();fctx.shadowColor=c[1];fctx.shadowBlur=12;fctx.fillStyle=gr;fctx.translate(x,y);fctx.rotate(k*4);fctx.beginPath();fctx.moveTo(0,-s/2);fctx.lineTo(s/2,0);fctx.lineTo(0,s/2);fctx.lineTo(-s/2,0);fctx.closePath();fctx.fill();fctx.restore();
+    if(k>=1){const q=goals[f.gi];if(q){q.shown=Math.min(q.need,(q.shown||0)+f.bonus);renderGoals(new Set([q.g]))}sound.tink(q?q.shown/q.need:.5);haptic.tick();return false}return true});
+}
+
+// ---------- input ----------
+function pt(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+const lift=()=>cell*1.6;
+cv.addEventListener("pointerdown",haptic.during(e=>{
+  sound.wake();if(over)return;const p=pt(e);if(p.y<trayY-cell*.5)return;
+  const k=Math.min(2,Math.floor(p.x/slotW));const pc=tray[k];if(!pc)return;
+  drag={k,p:pc,x:p.x-pc.w*cell/2,y:p.y-pc.h*cell-lift()*.4};lastSnap="";cv.setPointerCapture(e.pointerId);sound.pick();haptic.tap();
+}));
+cv.addEventListener("pointermove",e=>{if(!drag)return;const p=pt(e);drag.x=p.x-drag.p.w*cell/2;drag.y=p.y-drag.p.h*cell-lift()*.4;const t=dropTarget(),k=t?t.gx+","+t.gy:"";if(k!==lastSnap){lastSnap=k;if(t){haptic.tick();sound.snap(wouldClear(drag.p,t.gx,t.gy))}}});
+cv.addEventListener("pointerup",haptic.during(()=>{if(!drag)return;const t=dropTarget();if(t)place(drag.k,t.gx,t.gy);drag=null}));
+cv.addEventListener("pointercancel",()=>{drag=null});
+
+function place(k,gx,gy){
+  const p=tray[k];p.cells.forEach(([x,y])=>board[gy+y][gx+x]=p.g);tray[k]=null;
+  if(!store.tutored){store.tutored=true;save()}score+=p.cells.length;moves++;sound.place(p.cells.length);haptic.thud();const tn=performance.now();p.cells.forEach(([x,y])=>settles.set((gx+x)+","+(gy+y),tn));
+  const {rows,cols}=(()=>{const rows=[],cols=[];for(let i=0;i<N;i++){if(board[i].every(v=>v>=0))rows.push(i);if(board.every(r=>r[i]>=0))cols.push(i)}return{rows,cols}})();
+  const lines=rows.length+cols.length;
+  if(lines){
+    combo++;movesSinceClear=0;
+    let pure=[];rows.forEach(y=>{if(board[y].every(v=>v===board[y][0]))pure.push(board[y][0])});cols.forEach(x=>{if(board.every(r=>r[x]===board[0][x]))pure.push(board[0][x])});
+    const gained=lines*10*lines*combo*(pure.length?5*pure.length:1);score+=gained;
+    const cleared=new Set();rows.forEach(y=>{for(let x=0;x<N;x++)cleared.add(x+","+y)});cols.forEach(x=>{for(let y=0;y<N;y++)cleared.add(x+","+y)});
+    const now=performance.now();let i=0;const got=[];
+    const cx0=gx+p.w/2,cy0=gy+p.h/2;
+    [...cleared].map(s=>s.split(",").map(Number)).sort((a,b)=>Math.hypot(a[0]+.5-cx0,a[1]+.5-cy0)-Math.hypot(b[0]+.5-cx0,b[1]+.5-cy0)).forEach(([x,y],j)=>{
+      const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:j*38),j,pure:false});i++});
+    const words=["","Claimed","Double hoard","Triple hoard","Dragon's ransom","Legendary"];
+    texts.push({s:pure.length?`Pure ${GEMS[pure[0]].n} vein · counts double`:(words[Math.min(lines,5)])+(combo>1?`  ·  combo ×${combo}`:""),x:W/2,y:by+cell*N/2,t:now,size:Math.min(W*.07,30)});
+    if(pure.length){contentUntil=now+2600;sound.vein();if(!reduced)for(let j=0;j<60;j++)particles.push({x:W/2,y:by+cell*N/2,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12-3,s:cell*(.1+Math.random()*.14),c:GEMS[pure[0]].c[1],life:70+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}
+    pops.forEach(q=>{if(q.t>=now-1)q.pure=pure.length>0});claim(got,pure.length>0);
+    shake=Math.min(6,2+lines+combo*.5);sound.clear(lines,combo);haptic.burst();
+    $("foot").textContent=pure.length?"A pure vein. The dragon smiles in its sleep.":combo>1?`Combo ×${combo}.`:"Claimed for the hoard.";
+  }else{movesSinceClear++;if(movesSinceClear>=3&&combo){combo=0;$("foot").textContent="The combo cooled."}}
+  if(tray.every(x=>!x))tray=dealTray();
+  updScore();
+  if(!over&&!tray.some(x=>x&&anyFit(x)))setTimeout(dragonShift,500);
+}
+// no game over: when nothing fits, the dragon rolls over in its sleep and sweeps the fullest rows into its hoard
+function dragonShift(){
+  if(tray.some(x=>x&&anyFit(x)))return;
+  const now=performance.now();let swept=0,guard=0;const sweptG=[];
+  while(!tray.some(x=>x&&anyFit(x))&&guard++<8){
+    let best=-1,bc=-1;for(let y=0;y<N;y++){const c=board[y].filter(v=>v>=0).length;if(c>bc){bc=c;best=y}}
+    if(bc<=0)break;
+    for(let x=0;x<N;x++){const g=board[best][x];if(g<0)continue;board[best][x]=-1;swept++;sweptG.push(g);flashes.push({x,y:best,t:now});
+      if(!reduced)for(let j=0;j<3;j++)particles.push({x:bx+(x+.5)*cell,y:by+(best+.5)*cell,vx:(Math.random()-.5)*5,vy:-Math.random()*4-1,s:cell*(.07+Math.random()*.1),c:GEMS[g].c[1],life:50+Math.random()*25,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}
+  }
+  score+=swept;combo=0;moves+=2;claim(sweptG,false);updScore();sound.shift();
+  texts.push({s:"The dragon rolls over",x:W/2,y:by+cell*N/2,t:now,size:Math.min(W*.065,28)});
+  $("foot").textContent="Nothing fit, so the dragon rolled over and swept a few rows aside. That cost two moves.";
+}
+function gameOver(){
+  over=true;sound.end();const v=$("veil");v.hidden=false;
+  const best=score>=store.best;
+  v.innerHTML=`<div class="card"><h2>The dragon wakes</h2><div class="big">${score.toLocaleString()}</div><p>${best?"A new best. You'll be remembered in its hoard.":`Best ${store.best.toLocaleString()}`}</p><button id="again" type="button">Play again</button></div>`;
+  $("again").onclick=newGame;
+}
+function buzz(ms){haptic.fire(ms)}
+$("restart").onclick=newGame;
+$("sound").onclick=()=>{store.sound=!store.sound;save();$("sound").textContent=store.sound?"Sound on":"Sound off";if(store.sound){sound.unlock();sound.test();setTimeout(()=>{$("foot").textContent=`Sound check: ${sound.state()}. You should hear a soft chime.`},350)}};
+$("sound").textContent=store.sound?"Sound on":"Sound off";
+$("haptics").onclick=haptic.during(()=>{store.haptics=!store.haptics;save();$("haptics").textContent=store.haptics?"Haptics on":"Haptics off";if(store.haptics){haptic.burst();$("foot").textContent=haptic.native?"You should feel a few taps.":"You should feel a few taps. On iPhone this needs iOS 18 or newer."}});
+$("haptics").textContent=store.haptics?"Haptics on":"Haptics off";
+
+// ---------- sound: glassy, low, calm ----------
+const sound=(()=>{let ac,out,rev;
+  const S=[220,246.94,261.63,329.63,349.23,440,493.88,523.25,659.25,698.46,880,987.77,1046.5];
+  function wake(){if(ac||!store.sound)return;try{ac=new (window.AudioContext||window.webkitAudioContext)();out=ac.createGain();out.gain.value=.8;out.connect(ac.destination);
+    rev=ac.createDelay();rev.delayTime.value=.23;const fb=ac.createGain();fb.gain.value=.38;const wet=ac.createGain();wet.gain.value=.3;rev.connect(fb);fb.connect(rev);rev.connect(wet);wet.connect(out)}catch(e){ac=null}}
+  function tone(f,d=.8,v=.1,type="sine",w=0){if(!ac||!store.sound)return;const t=ac.currentTime+w,o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(out);g.connect(rev);o.start(t);o.stop(t+d+.05)}
+  return{wake,    state(){return ac?ac.state:"not started"},test(){tone(523.25,.9,.12,"sine")},unlock(){try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}wake();const A=ac;try{if(!window.__sil){const a=document.createElement("audio");a.src=SIL;a.loop=true;a.setAttribute("playsinline","");a.setAttribute("x-webkit-airplay","deny");a.preload="auto";const p=a.play();if(p&&p.catch)p.catch(()=>{window.__sil=null});window.__sil=a}else if(window.__sil.paused)window.__sil.play().catch(()=>{})}catch(e){}if(!A)return;try{if(A.state!=="running")A.resume();const b=A.createBuffer(1,1,22050),s=A.createBufferSource();s.buffer=b;s.connect(A.destination);s.start(0)}catch(e){}},
+
+    pick(){tone(660,.12,.04,"sine")},
+    place(n){tone(S[Math.min(4,n)]/2,.35,.12,"triangle");tone(S[Math.min(4,n)],.5,.04,"sine",.01)},
+    clear(lines,combo){const base=Math.min(combo-1,4);for(let i=0;i<2+lines*2;i++)tone(S[Math.min(S.length-1,base+i*2)],1.4,.07,"sine",i*.06);tone(110,1.2,.1,"triangle")},
+    breath(o){if(!ac||!store.sound)return;const t=ac.currentTime,len=1.6,b=ac.createBuffer(1,ac.sampleRate*len,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+      const src=ac.createBufferSource(),lp=ac.createBiquadFilter(),g=ac.createGain();src.buffer=b;lp.type="lowpass";lp.frequency.setValueAtTime(260+300*o,t);lp.frequency.linearRampToValueAtTime(160,t+len);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.025+.04*o,t+.9);g.gain.linearRampToValueAtTime(0,t+len);src.connect(lp);lp.connect(g);g.connect(out);src.start(t);src.stop(t+len);
+      },
+    shift(){[392,329.63,293.66,261.63,220].forEach((f,i)=>tone(f,1.8,.05,"sine",i*.12));tone(110,2.4,.06,"triangle")},
+    done(st){[0,2,4,6,7,9,11].slice(0,4+st).forEach((k,i)=>tone(S[k],2.2,.07,"sine",i*.12));tone(110,2.6,.08,"triangle")},
+    snap(w){const n=w.rows.length+w.cols.length;tone(n?880:1320,.05,.025,"sine");if(n)tone(1318.5,.18,.02,"sine",.02)},
+    pop(j,pure){tone(S[Math.min(S.length-1,3+j%9)]*(pure?2:1),.5,.035,"sine")},
+    tink(r){tone(1046.5+r*700,.25,.04,"triangle");tone(2093+r*900,.12,.012,"sine",.015)},
+    vein(){[0,2,4,6,8,10,12].forEach((k,i)=>tone(S[k],2,.06,"sine",.1+i*.07))},
+    end(){[440,349.23,293.66,220].forEach((f,i)=>tone(f,1.6,.07,"triangle",i*.18))}};
+})();
+
+
+// phones only allow audio once a tap has unlocked it; also ask iOS to play through the silent switch
+["pointerdown","touchend","click","keydown"].forEach(ev=>addEventListener(ev,()=>sound.unlock(),{capture:true,passive:true}));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)sound.unlock()});
+addEventListener("resize",layout);
+layout();newGame();requestAnimationFrame(render);
+</script>

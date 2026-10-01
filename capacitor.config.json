@@ -1,0 +1,11 @@
+{
+  "appId": "com.embergem.app",
+  "appName": "Embergem",
+  "webDir": "www",
+  "backgroundColor": "#0b0a0f",
+  "ios": { "contentInset": "never", "backgroundColor": "#0b0a0f", "scrollEnabled": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#0b0a0f", "showSpinner": false },
+    "StatusBar": { "style": "DARK", "overlaysWebView": true }
+  }
+}

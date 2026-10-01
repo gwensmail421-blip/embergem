@@ -1,0 +1,22 @@
+{
+  "name": "embergem",
+  "version": "1.0.0",
+  "description": "Embergem: a calm dark-gem block puzzle around a sleeping dragon.",
+  "scripts": {
+    "build": "node scripts/build-web.js",
+    "sync": "node scripts/build-web.js && npx cap sync ios"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2"
+  },
+  "private": true
+}

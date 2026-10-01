@@ -1,0 +1,11 @@
+node_modules/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/CapApp-SPM/.build/
+ios/App/build/
+DerivedData/
+xcuserdata/
+*.p8
+.DS_Store
+www/index.html
