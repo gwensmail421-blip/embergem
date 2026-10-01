@@ -474,19 +474,19 @@ function place(k,gx,gy){
     const cx0=gx+p.w/2,cy0=gy+p.h/2;
     [...cleared].map(s=>s.split(",").map(Number)).sort((a,b)=>Math.hypot(a[0]+.5-cx0,a[1]+.5-cy0)-Math.hypot(b[0]+.5-cx0,b[1]+.5-cy0)).forEach(([x,y],j)=>{
       const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:j*38),j,pure:false});i++});
-    const words=["","Claimed","Double hoard","Triple hoard","Dragon's ransom","Legendary"];
+    const words=["","Claimed","Double vein","Triple vein","Dragon's ransom","Legendary"];
     texts.push({s:pure.length?`Pure ${GEMS[pure[0]].n} vein · counts double`:(words[Math.min(lines,5)])+(combo>1?`  ·  combo ×${combo}`:""),x:W/2,y:by+cell*N/2,t:now,size:Math.min(W*.07,30)});
     if(pure.length){contentUntil=now+2600;sound.vein();if(!reduced)for(let j=0;j<60;j++)particles.push({x:W/2,y:by+cell*N/2,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12-3,s:cell*(.1+Math.random()*.14),c:GEMS[pure[0]].c[1],life:70+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}
     pops.forEach(q=>{if(q.t>=now-1)q.pure=pure.length>0});claim(got,pure.length>0);hoard(got.length);
     shake=Math.min(6,2+lines+combo*.5);sound.clear(lines,combo);haptic.burst();
-    $("foot").textContent=pure.length?"A pure vein. The dragon smiles in its sleep.":combo>1?`Combo ×${combo}.`:"Claimed for the hoard.";
+    $("foot").textContent=pure.length?"A pure vein. The dragon smiles in its sleep.":combo>1?`Combo ×${combo}.`:"Claimed for the dragon.";
   }else{movesSinceClear++;if(movesSinceClear>=3&&combo){combo=0;$("foot").textContent="The combo cooled."}}
   if(lines&&board.every(r=>r.every(v=>v<0))){score+=360;texts.push({s:"Board cleared  +360",x:W/2,y:by+cell*N/2+cell,t:performance.now()+200,size:Math.min(W*.06,26)})}
   if(tray.every(x=>!x))tray=dealTray();
   updScore();
   if(!over&&!tray.some(x=>x&&anyFit(x)))setTimeout(mode==="endless"?endRun:dragonShift,500);
 }
-// no game over: when nothing fits, the dragon rolls over in its sleep and sweeps the fullest rows into its hoard
+// no game over: when nothing fits, the dragon rolls over in its sleep and sweeps the fullest rows into its embers
 function dragonShift(){
   if(tray.some(x=>x&&anyFit(x)))return;
   const now=performance.now();let swept=0,guard=0;const sweptG=[];
@@ -503,7 +503,7 @@ function dragonShift(){
 function gameOver(){
   over=true;sound.end();const v=$("veil");v.hidden=false;
   const best=score>=store.best;
-  v.innerHTML=`<div class="card"><h2>The dragon wakes</h2><div class="big">${score.toLocaleString()}</div><p>${best?"A new best. You'll be remembered in its hoard.":`Best ${store.best.toLocaleString()}`}</p><button id="again" type="button">Play again</button></div>`;
+  v.innerHTML=`<div class="card"><h2>The dragon wakes</h2><div class="big">${score.toLocaleString()}</div><p>${best?"A new best. The dragon will remember you.":`Best ${store.best.toLocaleString()}`}</p><button id="again" type="button">Play again</button></div>`;
   $("again").onclick=newGame;
 }
 function buzz(ms){haptic.fire(ms)}
@@ -512,7 +512,7 @@ function endRun(){
   if(over||tray.some(x=>x&&anyFit(x)))return;over=true;sound.end();gc.submit(LB.endless,score);
   const gift=Math.floor(score/250);store.embers=(store.embers||0)+gift;save();boostUI();
   const v=$("veil");v.hidden=false;const canEmb=(store.embers||0)>=10,canAd=monet.canReward();
-  v.innerHTML=`<div class="card"><h2>The hoard is full</h2><div class="big">${score.toLocaleString()}</div>
+  v.innerHTML=`<div class="card"><h2>The board is full</h2><div class="big">${score.toLocaleString()}</div>
     <p>${runBest?"A new best. The dragon will remember it.":`Best ${store.best.toLocaleString()}`}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
     ${revived?"":`<div class="col">${canAd?`<button id="revAd" type="button">Revive · watch ad</button>`:""}${canEmb?`<button class="ghost" id="revEmb" type="button">Revive · 10 ✦</button>`:""}</div>`}
     <div class="row"><button class="ghost" id="share" type="button">Share</button><button id="again" type="button">New run</button></div></div>`;
@@ -521,7 +521,7 @@ function endRun(){
   if($("revAd"))$("revAd").onclick=()=>monet.rewarded(revive);
   if($("revEmb"))$("revEmb").onclick=()=>{store.embers-=10;save();revive()};
 }
-function shareScore(n){shareText(`I scored ${n.toLocaleString()} in Embergem's Endless Hoard 🐉💎 Can you beat it?`)}
+function shareScore(n){shareText(`I scored ${n.toLocaleString()} in Embergem Endless 🐉💎 Can you beat it?`)}
 function shareText(text){
   const S=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Share;
   if(S&&S.share)S.share({text,dialogTitle:"Share your score"}).catch(()=>{});
@@ -539,12 +539,12 @@ function boostUI(){dailyNudge();
 $("bUndo").onclick=haptic.during(()=>{if(!undoSnap||over||!spend(3))return;const u=undoSnap;board=u.board;tray=u.tray;score=u.score;combo=u.combo;movesSinceClear=u.movesSinceClear;moves=u.moves;goals=u.goals;
   pops=[];flyers=[];goals.forEach(q=>q.shown=q.got);undoSnap=null;renderGoals();updScore();sound.pick();haptic.tap();$("foot").textContent="Time folds back one move."});
 $("bClaw").onclick=haptic.during(()=>{if(over)return;if(aiming){aiming=false;boostUI();$("foot").textContent="Claw put away.";return}if((store.embers||0)<6){spend(6);return}aiming=true;boostUI();haptic.tap();$("foot").textContent="Tap any gem. The dragon's claw shatters the 3×3 around it."});
-$("bFresh").onclick=haptic.during(()=>{if(over||freshUsed||!spend(3))return;freshUsed=true;tray=dealTray();sound.vein();haptic.thud();$("foot").textContent="Fresh pieces from the hoard.";boostUI()});
+$("bFresh").onclick=haptic.during(()=>{if(over||freshUsed||!spend(3))return;freshUsed=true;tray=dealTray();sound.vein();haptic.thud();$("foot").textContent="Fresh pieces from the embers.";boostUI()});
 $("bEmbers").onclick=()=>{if(!monet.canReward()){$("foot").textContent=`You have ${store.embers||0} embers. Earn more from chambers, runs and the daily gift.`;return}monet.rewarded(()=>{store.embers=(store.embers||0)+10;save();boostUI();sound.vein();$("foot").textContent="+10 embers. Thank you."})};
 function claw(cx,cy){
   aiming=false;undoSnap=null;const now=performance.now(),got=[];
   for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){if(x<0||y<0||x>=N||y>=N||board[y][x]<0)continue;const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:(Math.abs(x-cx)+Math.abs(y-cy))*70),j:got.length,pure:false})}
-  if(got.length){claim(got,false);hoard(got.length);sound.clear(1,1);haptic.burst();shake=4;$("foot").textContent="The claw shatters the gems into the hoard."}
+  if(got.length){claim(got,false);hoard(got.length);sound.clear(1,1);haptic.burst();shake=4;$("foot").textContent="The claw shatters the gems to embers."}
   boostUI();updScore();
 }
 // ---------- daily gift: a small present each day; a missed day just lets the streak sleep ----------
@@ -553,7 +553,7 @@ function dailyGift(){
   const streak=Math.min(7,(store.giftStreak||0)+1),n=4+streak;store.giftStreak=streak;store.lastGift=today;store.embers=(store.embers||0)+n;save();boostUI();
   if(!store.tutored)return;
   const v=$("veil");v.hidden=false;
-  v.innerHTML=`<div class="card"><h2>A gift from the hoard</h2><div class="big">+${n} ✦</div><p>Day ${streak} of 7. Come back tomorrow for a bigger one.<br>Missed days never break it.</p><button id="take" type="button">Take it</button></div>`;
+  v.innerHTML=`<div class="card"><h2>A gift from the dragon</h2><div class="big">+${n} ✦</div><p>Day ${streak} of 7. Come back tomorrow for a bigger one.<br>Missed days never break it.</p><button id="take" type="button">Take it</button></div>`;
   $("take").onclick=()=>{v.hidden=true;sound.vein();haptic.success()};
 }
 function setMode(m){mode=m;store.mode=m;save();$("modes").hidden=true;newGame()}
@@ -561,7 +561,7 @@ $("modeBtn").onclick=()=>{const d=store.daily&&store.daily[todayKey()],st=dragon
   $("mDaily").innerHTML=`Daily #${dailyNo()}<small>${d?`${"★".repeat(d.stars)} in ${d.moves} moves · done`:"Same chamber for everyone today"}</small>`;
   $("mChamb").innerHTML=`Chambers<small>Chamber ${roman(store.level||lvl)} · calm, no ending</small>`;
   $("mEndless").innerHTML=`Endless<small>Best ${(store.best||0).toLocaleString()} · scored like other block games</small>`;
-  $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} gems hoarded${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
+  $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} gems gathered${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
   $("lbBtn").hidden=!gc.available();$("modes").hidden=false};
 $("mDaily").onclick=()=>setMode("daily");$("dailyNudge").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
 $("closeModes").onclick=()=>{$("modes").hidden=true};$("lbBtn").onclick=()=>gc.show();
