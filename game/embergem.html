@@ -43,8 +43,16 @@ button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
 .card h2{font-family:var(--display);font-weight:400;color:var(--gold);font-size:28px;margin:0;letter-spacing:.06em}
 .card .big{font-family:var(--display);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
 .card p{margin:0;color:var(--mist);font-size:17px}
+.card p.gift{color:var(--gold-hi);font-style:italic}
 .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .row button.ghost{padding:10px 16px}
+.boosts{display:flex;gap:8px;justify-content:center}
+.boost{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:62px;padding:6px 8px;border-radius:14px;background:rgba(241,220,174,.06);border:1px solid var(--rim);color:var(--bone);font-family:var(--body);font-size:14px;letter-spacing:.02em}
+.boost span{font-size:18px;line-height:1;color:var(--gold)}
+.boost small{color:var(--gold);font-size:12px}.boost small::before{content:"✦ "}
+.boost.wallet b{color:var(--gold-hi);font-size:17px;font-weight:600}.boost.wallet small::before{content:""}
+.boost.on{border-color:var(--gold);box-shadow:0 0 12px rgba(200,167,106,.5)}
+.boost:disabled{opacity:.35}
 .col{display:flex;flex-direction:column;gap:12px;align-items:stretch;min-width:240px}
 .card.col h2{margin-bottom:6px}
 button.link{background:none;border:0;color:var(--gold);font-family:var(--body);font-style:italic;font-size:17px;letter-spacing:.02em;padding:6px 10px}
@@ -55,13 +63,18 @@ button:disabled{opacity:.45}
   <header>
     <div class="brand">EMBERGEM</div>
     <div class="chamber" id="chamber">Chamber I</div>
-    <div class="best">Moves<b id="moves">0</b></div>
+    <div class="best"><span id="statLbl">Moves</span><b id="moves">0</b></div>
   </header>
   <div class="goals" id="goals" aria-live="polite"></div>
   <div class="stage" id="stage"><canvas id="cv" aria-label="Game board. Drag a gem from the tray onto the board."></canvas></div>
   <div class="foot" id="foot">Fill rows or columns to claim the gems the dragon wants.</div>
-  <button class="link" id="fresh" type="button" hidden>✦ Fresh pieces</button>
-  <div class="row"><button class="ghost" id="settingsBtn" type="button">Settings</button><button class="ghost" id="restart" type="button">Restart</button></div>
+  <div class="boosts" id="boosts">
+    <button class="boost" id="bUndo" type="button" aria-label="Undo last move, 3 embers"><span>↺</span>Undo<small>3</small></button>
+    <button class="boost" id="bClaw" type="button" aria-label="Dragon claw: shatter a 3 by 3 area, 6 embers"><span>✧</span>Claw<small>6</small></button>
+    <button class="boost" id="bFresh" type="button" aria-label="Fresh pieces, 3 embers"><span>⟳</span>Fresh<small>3</small></button>
+    <button class="boost wallet" id="bEmbers" type="button" aria-label="Your embers"><span>✦</span><b id="embers">0</b><small id="earn" hidden>+10</small></button>
+  </div>
+  <div class="row"><button class="ghost" id="settingsBtn" type="button">Settings</button><button class="ghost" id="modeBtn" type="button">Endless</button><button class="ghost" id="restart" type="button">Restart</button></div>
 </div>
 <canvas id="fx" aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;z-index:4"></canvas>
 <div class="veil" id="veil" hidden></div>
@@ -80,7 +93,7 @@ const $=id=>document.getElementById(id),cv=$("cv"),ctx=cv.getContext("2d");
 const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 function load(){try{return JSON.parse((localStorage.getItem("embergem")||localStorage.getItem("hoard"))||"{}")}catch(e){return{}}}
 function save(){try{localStorage.setItem("embergem",JSON.stringify(store))}catch(e){}}
-const store=Object.assign({best:0,sound:true,haptics:true},load());
+const store=Object.assign({best:0,sound:true,haptics:true,embers:5},load());
 
 // Jewel tones: [base, light, deep]
 const GEMS=[
@@ -153,25 +166,25 @@ function setupChamber(n){
 }
 function renderGoals(bumpG){
   $("goals").innerHTML=goals.map(q=>{const c=GEMS[q.g].c;return`<span class="goal${(q.shown??q.got)>=q.need?" done":""}${bumpG&&bumpG.has(q.g)?" bump":""}" title="${GEMS[q.g].n}"><i style="background:linear-gradient(135deg,${c[1]},${c[0]} 50%,${c[2]})"></i><b>${Math.min(q.shown??q.got,q.need)}</b><small>/ ${q.need}</small></span>`}).join("");
-  $("moves").textContent=moves;$("chamber").textContent=`Chamber ${roman(lvl)}`;
+  if(mode==="endless"){$("chamber").textContent="Endless";updScore();return}$("moves").textContent=moves;$("chamber").textContent=`Chamber ${roman(lvl)}`;
 }
 function claim(cells,pureBonus,fromXY){ // cells: gem ids cleared
   const bumped=new Set();cells.forEach(g=>{const q=goals.find(q=>q.g===g);if(q&&q.got<q.need){q.got=Math.min(q.need,q.got+(pureBonus?2:1));bumped.add(g)}});
   renderGoals();
-  if(!over&&goals.every(q=>q.got>=q.need)){over=true;haptic.success();monet.refresh();setTimeout(chamberDone,1500)}
+  if(!over&&goals.length&&goals.every(q=>q.got>=q.need)){over=true;haptic.success();monet.refresh();setTimeout(chamberDone,1500)}
 }
 function chamberDone(){
   const stars=moves<=par?3:moves<=Math.ceil(par*1.4)?2:1;
-  store.stars=store.stars||{};if(!reduced)for(let j=0;j<90;j++)particles.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*2,vy:Math.random()*3,s:cell*(.1+Math.random()*.14),c:GEMS[goals[j%goals.length].g].c[j%2],life:120+Math.random()*60,rot:Math.random()*6,vr:(Math.random()-.5)*.2});store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=lvl+1;save();sound.done(stars);
+  store.stars=store.stars||{};if(!reduced)for(let j=0;j<90;j++)particles.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*2,vy:Math.random()*3,s:cell*(.1+Math.random()*.14),c:GEMS[goals[j%goals.length].g].c[j%2],life:120+Math.random()*60,rot:Math.random()*6,vr:(Math.random()-.5)*.2});store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=lvl+1;const gift=2+stars*2;store.embers=(store.embers||0)+gift;save();sound.done(stars);
   const v=$("veil");v.hidden=false;
   v.innerHTML=`<div class="card"><h2>Chamber ${roman(lvl)} claimed</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
-    <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p>
+    <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p><p class="gift">+${gift} ✦ embers</p>
     <div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div></div>`;
   $("nextc").onclick=()=>monet.between(()=>{lvl++;newGame()});$("again").onclick=newGame;
 }
-function newGame(){freshUsed=false;board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[];monet.refresh()}
+function newGame(){freshUsed=false;undoSnap=null;aiming=false;revived=false;runBest=false;$("statLbl").textContent=mode==="endless"?"Score":"Moves";$("modeBtn").textContent=mode==="endless"?"Chambers":"Endless";board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;if(mode==="endless"){goals=[];par=0}else setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[];monet.refresh()}
 function rnd(a){return a[Math.floor(Math.random()*a.length)]}
-let dealGems=[0,1,2],freshUsed=false;
+let dealGems=[0,1,2],freshUsed=false,mode=store.mode==='endless'?'endless':'chambers',undoSnap=null,aiming=false,revived=false,runBest=false;
 function makePiece(){const s=rnd(SHAPES);return{cells:s,g:rnd(dealGems),w:Math.max(...s.map(c=>c[0]))+1,h:Math.max(...s.map(c=>c[1]))+1}}
 function fits(p,gx,gy){return p.cells.every(([x,y])=>{const X=gx+x,Y=gy+y;return X>=0&&Y>=0&&X<N&&Y<N&&board[Y][X]<0})}
 function anyFit(p){for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y))return true;return false}
@@ -179,7 +192,10 @@ function dealTray(){
   dealGems=goals.length?[...goals.map(q=>q.g),...goals.map(q=>q.g),Math.floor(Math.random()*GEMS.length)]:[0,1,2].map(()=>Math.floor(Math.random()*GEMS.length));
   for(let t=0;t<12;t++){const tr=[makePiece(),makePiece(),makePiece()];if(!board||tr.some(anyFit)||t===11)return tr}
 }
-function updScore(){$("moves").textContent=moves}
+function updScore(){
+  if(mode==="endless"){$("moves").textContent=score.toLocaleString();if(score>store.best&&score>0){store.best=score;runBest=true;save()}$("goals").innerHTML=`<span class="goal"><small>Best</small>&nbsp;<b>${store.best.toLocaleString()}</b></span>`}
+  else $("moves").textContent=moves;
+  boostUI()}
 
 // ---------- the dragon coiled around the hoard ----------
 let eyeO=0,nextBreath=0,smoke=[],contentUntil=0;
@@ -344,6 +360,7 @@ function render(now){
     ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.rot);ctx.globalAlpha=a;ctx.fillStyle=q.c;ctx.beginPath();ctx.moveTo(0,-q.s);ctx.lineTo(q.s*.6,0);ctx.lineTo(0,q.s);ctx.lineTo(-q.s*.6,0);ctx.closePath();ctx.fill();ctx.restore()});
   texts=texts.filter(q=>now-q.t<1100);
   texts.forEach(q=>{const k=(now-q.t)/1100;ctx.save();ctx.globalAlpha=1-k*k;ctx.font=`${q.size}px "Marcellus SC", Georgia, serif`;ctx.textAlign="center";ctx.fillStyle="#f1dcae";ctx.shadowColor="#c8a76a";ctx.shadowBlur=16;ctx.fillText(q.s,q.x,q.y-k*30);ctx.restore()});
+  if(aiming){ctx.save();ctx.strokeStyle=`rgba(241,220,174,${.45+.35*Math.sin(now*.006)})`;ctx.lineWidth=3;ctx.shadowColor="#f1dcae";ctx.shadowBlur=14;rr(bx-4,by-4,cell*N+8,cell*N+8,cell*.3);ctx.stroke();ctx.restore()}
   drawTutorial(now);
   ctx.restore();
   drawFlyers(now);
@@ -375,7 +392,9 @@ function drawFlyers(now){
 function pt(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 const lift=()=>cell*1.6;
 cv.addEventListener("pointerdown",haptic.during(e=>{
-  sound.wake();if(over)return;const p=pt(e);if(p.y<trayY-cell*.5)return;
+  sound.wake();if(over)return;const p=pt(e);
+  if(aiming){const cx=Math.floor((p.x-bx)/cell),cy=Math.floor((p.y-by)/cell);if(cx>=0&&cy>=0&&cx<N&&cy<N&&board[cy][cx]>=0&&spend(6))claw(cx,cy);return}
+  if(p.y<trayY-cell*.5)return;
   const k=Math.min(2,Math.floor(p.x/slotW));const pc=tray[k];if(!pc)return;
   drag={k,p:pc,x:p.x-pc.w*cell/2,y:p.y-pc.h*cell-lift()*.4};lastSnap="";cv.setPointerCapture(e.pointerId);sound.pick();haptic.tap();
 }));
@@ -384,6 +403,7 @@ cv.addEventListener("pointerup",haptic.during(()=>{if(!drag)return;const t=dropT
 cv.addEventListener("pointercancel",()=>{drag=null});
 
 function place(k,gx,gy){
+  undoSnap={board:board.map(r=>r.slice()),tray:tray.slice(),score,combo,movesSinceClear,moves,goals:goals.map(q=>({...q}))};
   const p=tray[k];p.cells.forEach(([x,y])=>board[gy+y][gx+x]=p.g);tray[k]=null;
   if(!store.tutored){store.tutored=true;save()}score+=p.cells.length;moves++;sound.place(p.cells.length);haptic.thud();const tn=performance.now();p.cells.forEach(([x,y])=>settles.set((gx+x)+","+(gy+y),tn));
   const {rows,cols}=(()=>{const rows=[],cols=[];for(let i=0;i<N;i++){if(board[i].every(v=>v>=0))rows.push(i);if(board.every(r=>r[i]>=0))cols.push(i)}return{rows,cols}})();
@@ -391,7 +411,8 @@ function place(k,gx,gy){
   if(lines){
     combo++;movesSinceClear=0;
     let pure=[];rows.forEach(y=>{if(board[y].every(v=>v===board[y][0]))pure.push(board[y][0])});cols.forEach(x=>{if(board.every(r=>r[x]===board[0][x]))pure.push(board[0][x])});
-    const gained=lines*10*lines*combo*(pure.length?5*pure.length:1);score+=gained;
+    // Block Blast-style: line bonus by lines cleared at once, times the streak; +360 for clearing the whole board
+    const LINE_PTS=[0,10,20,60,120,200,300];const gained=LINE_PTS[Math.min(lines,6)]*combo;score+=gained;
     const cleared=new Set();rows.forEach(y=>{for(let x=0;x<N;x++)cleared.add(x+","+y)});cols.forEach(x=>{for(let y=0;y<N;y++)cleared.add(x+","+y)});
     const now=performance.now();let i=0;const got=[];
     const cx0=gx+p.w/2,cy0=gy+p.h/2;
@@ -404,9 +425,10 @@ function place(k,gx,gy){
     shake=Math.min(6,2+lines+combo*.5);sound.clear(lines,combo);haptic.burst();
     $("foot").textContent=pure.length?"A pure vein. The dragon smiles in its sleep.":combo>1?`Combo ×${combo}.`:"Claimed for the hoard.";
   }else{movesSinceClear++;if(movesSinceClear>=3&&combo){combo=0;$("foot").textContent="The combo cooled."}}
+  if(lines&&board.every(r=>r.every(v=>v<0))){score+=360;texts.push({s:"Board cleared  +360",x:W/2,y:by+cell*N/2+cell,t:performance.now()+200,size:Math.min(W*.06,26)})}
   if(tray.every(x=>!x))tray=dealTray();
   updScore();
-  if(!over&&!tray.some(x=>x&&anyFit(x)))setTimeout(dragonShift,500);
+  if(!over&&!tray.some(x=>x&&anyFit(x)))setTimeout(mode==="endless"?endRun:dragonShift,500);
 }
 // no game over: when nothing fits, the dragon rolls over in its sleep and sweeps the fullest rows into its hoard
 function dragonShift(){
@@ -429,10 +451,58 @@ function gameOver(){
   $("again").onclick=newGame;
 }
 function buzz(ms){haptic.fire(ms)}
+// ---------- endless: the run ends when nothing fits; one revive per run ----------
+function endRun(){
+  if(over||tray.some(x=>x&&anyFit(x)))return;over=true;sound.end();
+  const gift=Math.floor(score/250);store.embers=(store.embers||0)+gift;save();boostUI();
+  const v=$("veil");v.hidden=false;const canEmb=(store.embers||0)>=10,canAd=monet.canReward();
+  v.innerHTML=`<div class="card"><h2>The hoard is full</h2><div class="big">${score.toLocaleString()}</div>
+    <p>${runBest?"A new best. The dragon will remember it.":`Best ${store.best.toLocaleString()}`}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
+    ${revived?"":`<div class="col">${canAd?`<button id="revAd" type="button">Revive · watch ad</button>`:""}${canEmb?`<button class="ghost" id="revEmb" type="button">Revive · 10 ✦</button>`:""}</div>`}
+    <div class="row"><button class="ghost" id="share" type="button">Share</button><button id="again" type="button">New run</button></div></div>`;
+  const revive=()=>{revived=true;over=false;v.hidden=true;dragonShift();$("foot").textContent="The dragon rolled over and made room. Play on.";updScore()};
+  $("again").onclick=()=>monet.between(newGame);$("share").onclick=()=>shareScore(score);
+  if($("revAd"))$("revAd").onclick=()=>monet.rewarded(revive);
+  if($("revEmb"))$("revEmb").onclick=()=>{store.embers-=10;save();revive()};
+}
+function shareScore(n){
+  const text=`I scored ${n.toLocaleString()} in Embergem's Endless Hoard 🐉💎 Can you beat it?`;
+  const S=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Share;
+  if(S&&S.share)S.share({text,dialogTitle:"Share your score"}).catch(()=>{});
+  else if(navigator.share)navigator.share({text}).catch(()=>{});
+  else{try{navigator.clipboard.writeText(text);$("foot").textContent="Score copied. Paste it anywhere."}catch(e){}}
+}
+// ---------- embers and boosts ----------
+function spend(c){if((store.embers||0)<c){$("foot").textContent=monet.canReward()?"Not enough embers. Tap ✦ to watch a short ad for 10 more.":"Not enough embers yet. Finish chambers to earn more.";haptic.tick();return false}store.embers-=c;save();boostUI();return true}
+function boostUI(){
+  const e=store.embers||0;$("embers").textContent=e;
+  $("bUndo").disabled=over||!undoSnap;$("bClaw").disabled=over||!board.some(r=>r.some(v=>v>=0));$("bFresh").disabled=over||freshUsed;
+  $("bClaw").classList.toggle("on",aiming);$("earn").hidden=!monet.canReward();
+}
+$("bUndo").onclick=haptic.during(()=>{if(!undoSnap||over||!spend(3))return;const u=undoSnap;board=u.board;tray=u.tray;score=u.score;combo=u.combo;movesSinceClear=u.movesSinceClear;moves=u.moves;goals=u.goals;
+  pops=[];flyers=[];goals.forEach(q=>q.shown=q.got);undoSnap=null;renderGoals();updScore();sound.pick();haptic.tap();$("foot").textContent="Time folds back one move."});
+$("bClaw").onclick=haptic.during(()=>{if(over)return;if(aiming){aiming=false;boostUI();$("foot").textContent="Claw put away.";return}if((store.embers||0)<6){spend(6);return}aiming=true;boostUI();haptic.tap();$("foot").textContent="Tap any gem. The dragon's claw shatters the 3×3 around it."});
+$("bFresh").onclick=haptic.during(()=>{if(over||freshUsed||!spend(3))return;freshUsed=true;tray=dealTray();sound.vein();haptic.thud();$("foot").textContent="Fresh pieces from the hoard.";boostUI()});
+$("bEmbers").onclick=()=>{if(!monet.canReward()){$("foot").textContent=`You have ${store.embers||0} embers. Earn more from chambers, runs and the daily gift.`;return}monet.rewarded(()=>{store.embers=(store.embers||0)+10;save();boostUI();sound.vein();$("foot").textContent="+10 embers. Thank you."})};
+function claw(cx,cy){
+  aiming=false;undoSnap=null;const now=performance.now(),got=[];
+  for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){if(x<0||y<0||x>=N||y>=N||board[y][x]<0)continue;const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:(Math.abs(x-cx)+Math.abs(y-cy))*70),j:got.length,pure:false})}
+  if(got.length){claim(got,false);sound.clear(1,1);haptic.burst();shake=4;$("foot").textContent="The claw shatters the gems into the hoard."}
+  boostUI();updScore();
+}
+// ---------- daily gift: a small present each day; a missed day just lets the streak sleep ----------
+function dailyGift(){
+  const day=d=>new Date(d).toISOString().slice(0,10),today=day(Date.now());if(store.lastGift===today)return;
+  const streak=Math.min(7,(store.giftStreak||0)+1),n=4+streak;store.giftStreak=streak;store.lastGift=today;store.embers=(store.embers||0)+n;save();boostUI();
+  if(!store.tutored)return;
+  const v=$("veil");v.hidden=false;
+  v.innerHTML=`<div class="card"><h2>A gift from the hoard</h2><div class="big">+${n} ✦</div><p>Day ${streak} of 7. Come back tomorrow for a bigger one.<br>Missed days never break it.</p><button id="take" type="button">Take it</button></div>`;
+  $("take").onclick=()=>{v.hidden=true;sound.vein();haptic.success()};
+}
+$("modeBtn").onclick=()=>{mode=mode==="endless"?"chambers":"endless";store.mode=mode;save();newGame();$("foot").textContent=mode==="endless"?"Endless Hoard: score as high as you can. Scored like other block games, so you can compare.":"Back to the chambers."};
 $("restart").onclick=newGame;
 $("settingsBtn").onclick=()=>{$("shopMsg").textContent="";monet.refresh();$("settings").hidden=false};
 $("closeSet").onclick=()=>{$("settings").hidden=true};
-$("fresh").onclick=()=>monet.fresh(()=>{freshUsed=true;tray=dealTray();sound.vein();haptic.thud();$("foot").textContent="Fresh pieces from the hoard.";monet.refresh()});
 $("noads").onclick=()=>monet.buy();$("restore").onclick=()=>monet.restore();$("privacy").onclick=()=>monet.privacy();
 $("sound").onclick=()=>{store.sound=!store.sound;save();monet.mute(!store.sound);$("sound").textContent=store.sound?"Sound on":"Sound off";if(store.sound){sound.unlock();sound.test();setTimeout(()=>{$("foot").textContent=`Sound check: ${sound.state()}. You should hear a soft chime.`},350)}};
 $("sound").textContent=store.sound?"Sound on":"Sound off";
@@ -465,20 +535,21 @@ const monet=(()=>{
     refresh();
   }
   function refresh(){
-    $("fresh").hidden=!native||freshUsed||over||!(noAds()||rewardReady);
+    boostUI();
     $("shop").hidden=!native;$("privacy").hidden=!privacyNeeded;
     $("noads").disabled=noAds()||!price;$("noads").textContent=noAds()?"Ads removed. Thank you!":price?`Remove ads · ${price}`:"Remove ads";
   }
   async function between(next){
     sinceAd++;
-    if(!started||noAds()||!interReady||lvl<2||sinceAd<2)return next();
+    if(!started||noAds()||!interReady||(mode==="chambers"&&lvl<2)||sinceAd<(mode==="endless"?3:2))return next();
     try{const t=await Ad.trackingAuthorizationStatus();if(t.status==="notDetermined")await Ad.requestTrackingAuthorization()}catch(e){}
     let done=false;const go=()=>{if(done)return;done=true;sinceAd=0;loadInter();next()};
     let h;try{h=await Ad.addListener("interstitialAdDismissed",()=>{h&&h.remove();go()})}catch(e){}
     Ad.showInterstitial().catch(()=>{h&&h.remove();go()});
   }
-  async function fresh(reward){
-    if(busy)return;if(noAds()){reward();return}
+  // noAds buyers get the reward straight away, no ad
+  async function rewarded(reward){
+    if(busy)return;if(noAds()){const d=new Date().toISOString().slice(0,10);if(store.freeDay!==d||(store.freeCount||0)<3){if(store.freeDay!==d){store.freeDay=d;store.freeCount=0}store.freeCount++;save();reward()}else $("foot").textContent="That's today's three free refills. More tomorrow.";return}
     if(!rewardReady)return;busy=true;let got=false;
     let h;try{h=await Ad.addListener("onRewardedVideoAdReward",()=>{got=true})}catch(e){}
     try{await Ad.showRewardVideoAd();}catch(e){}
@@ -498,7 +569,7 @@ const monet=(()=>{
     refresh();
   }
   function privacy(){Ad&&Ad.showPrivacyOptionsForm().catch(()=>{})}
-  return{start,refresh,between,fresh,buy,restore,privacy,native,mute:m=>{if(started)Ad.setApplicationMuted({muted:m}).catch(()=>{})}};
+  return{start,refresh,between,rewarded,canReward:()=>native&&(noAds()?(store.freeDay!==new Date().toISOString().slice(0,10)||(store.freeCount||0)<3):rewardReady),buy,restore,privacy,native,mute:m=>{if(started)Ad.setApplicationMuted({muted:m}).catch(()=>{})}};
 })();
 
 // ---------- sound: glassy, low, calm ----------
@@ -531,5 +602,5 @@ const sound=(()=>{let ac,out,rev;
 ["pointerdown","touchend","click","keydown"].forEach(ev=>addEventListener(ev,()=>sound.unlock(),{capture:true,passive:true}));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)sound.unlock()});
 addEventListener("resize",layout);
-layout();newGame();requestAnimationFrame(render);monet.start();
+layout();newGame();requestAnimationFrame(render);monet.start();dailyGift();
 </script>
