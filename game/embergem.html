@@ -37,7 +37,7 @@ canvas{touch-action:none;display:block;max-width:100%}
 button{font-family:var(--display);font-size:15px;letter-spacing:.12em;color:var(--void);background:var(--gold);border:0;border-radius:999px;padding:10px 22px;cursor:pointer}
 button.ghost{background:transparent;color:var(--bone);border:1px solid var(--rim)}
 button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
-.veil{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding-inline:16px;background:color-mix(in srgb,var(--void) 80%,transparent);animation:fade .8s ease both}
+.veil{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding-inline:16px;background:color-mix(in srgb,var(--void) 80%,transparent);animation:fade .8s ease both}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .card{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;max-width:360px}
 .card h2{font-family:var(--display);font-weight:400;color:var(--gold);font-size:28px;margin:0;letter-spacing:.06em}
@@ -45,6 +45,10 @@ button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
 .card p{margin:0;color:var(--mist);font-size:17px}
 .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .row button.ghost{padding:10px 16px}
+.col{display:flex;flex-direction:column;gap:12px;align-items:stretch;min-width:240px}
+.card.col h2{margin-bottom:6px}
+button.link{background:none;border:0;color:var(--gold);font-family:var(--body);font-style:italic;font-size:17px;letter-spacing:.02em;padding:6px 10px}
+button:disabled{opacity:.45}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 <div class="app">
@@ -56,10 +60,20 @@ button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
   <div class="goals" id="goals" aria-live="polite"></div>
   <div class="stage" id="stage"><canvas id="cv" aria-label="Game board. Drag a gem from the tray onto the board."></canvas></div>
   <div class="foot" id="foot">Fill rows or columns to claim the gems the dragon wants.</div>
-  <div class="row"><button class="ghost" id="sound" type="button">Sound on</button><button class="ghost" id="haptics" type="button">Haptics on</button><button class="ghost" id="restart" type="button">Restart</button></div>
+  <button class="link" id="fresh" type="button" hidden>✦ Fresh pieces</button>
+  <div class="row"><button class="ghost" id="settingsBtn" type="button">Settings</button><button class="ghost" id="restart" type="button">Restart</button></div>
 </div>
 <canvas id="fx" aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;z-index:4"></canvas>
 <div class="veil" id="veil" hidden></div>
+<div class="veil" id="settings" hidden><div class="card col">
+  <h2>Settings</h2>
+  <button class="ghost" id="sound" type="button">Sound on</button>
+  <button class="ghost" id="haptics" type="button">Haptics on</button>
+  <div class="col" id="shop" hidden><button id="noads" type="button">Remove ads</button><button class="link" id="restore" type="button">Restore purchase</button></div>
+  <button class="link" id="privacy" type="button" hidden>Privacy choices</button>
+  <button class="ghost" id="closeSet" type="button">Done</button>
+  <p id="shopMsg"></p>
+</div></div>
 <script>
 const SIL="data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAPAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
 const $=id=>document.getElementById(id),cv=$("cv"),ctx=cv.getContext("2d");
@@ -144,7 +158,7 @@ function renderGoals(bumpG){
 function claim(cells,pureBonus,fromXY){ // cells: gem ids cleared
   const bumped=new Set();cells.forEach(g=>{const q=goals.find(q=>q.g===g);if(q&&q.got<q.need){q.got=Math.min(q.need,q.got+(pureBonus?2:1));bumped.add(g)}});
   renderGoals();
-  if(!over&&goals.every(q=>q.got>=q.need)){over=true;haptic.success();setTimeout(chamberDone,1500)}
+  if(!over&&goals.every(q=>q.got>=q.need)){over=true;haptic.success();monet.refresh();setTimeout(chamberDone,1500)}
 }
 function chamberDone(){
   const stars=moves<=par?3:moves<=Math.ceil(par*1.4)?2:1;
@@ -153,11 +167,11 @@ function chamberDone(){
   v.innerHTML=`<div class="card"><h2>Chamber ${roman(lvl)} claimed</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
     <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p>
     <div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div></div>`;
-  $("nextc").onclick=()=>{lvl++;newGame()};$("again").onclick=newGame;
+  $("nextc").onclick=()=>monet.between(()=>{lvl++;newGame()});$("again").onclick=newGame;
 }
-function newGame(){board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[]}
+function newGame(){freshUsed=false;board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[];monet.refresh()}
 function rnd(a){return a[Math.floor(Math.random()*a.length)]}
-let dealGems=[0,1,2];
+let dealGems=[0,1,2],freshUsed=false;
 function makePiece(){const s=rnd(SHAPES);return{cells:s,g:rnd(dealGems),w:Math.max(...s.map(c=>c[0]))+1,h:Math.max(...s.map(c=>c[1]))+1}}
 function fits(p,gx,gy){return p.cells.every(([x,y])=>{const X=gx+x,Y=gy+y;return X>=0&&Y>=0&&X<N&&Y<N&&board[Y][X]<0})}
 function anyFit(p){for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y))return true;return false}
@@ -416,10 +430,76 @@ function gameOver(){
 }
 function buzz(ms){haptic.fire(ms)}
 $("restart").onclick=newGame;
-$("sound").onclick=()=>{store.sound=!store.sound;save();$("sound").textContent=store.sound?"Sound on":"Sound off";if(store.sound){sound.unlock();sound.test();setTimeout(()=>{$("foot").textContent=`Sound check: ${sound.state()}. You should hear a soft chime.`},350)}};
+$("settingsBtn").onclick=()=>{$("shopMsg").textContent="";monet.refresh();$("settings").hidden=false};
+$("closeSet").onclick=()=>{$("settings").hidden=true};
+$("fresh").onclick=()=>monet.fresh(()=>{freshUsed=true;tray=dealTray();sound.vein();haptic.thud();$("foot").textContent="Fresh pieces from the hoard.";monet.refresh()});
+$("noads").onclick=()=>monet.buy();$("restore").onclick=()=>monet.restore();$("privacy").onclick=()=>monet.privacy();
+$("sound").onclick=()=>{store.sound=!store.sound;save();monet.mute(!store.sound);$("sound").textContent=store.sound?"Sound on":"Sound off";if(store.sound){sound.unlock();sound.test();setTimeout(()=>{$("foot").textContent=`Sound check: ${sound.state()}. You should hear a soft chime.`},350)}};
 $("sound").textContent=store.sound?"Sound on":"Sound off";
 $("haptics").onclick=haptic.during(()=>{store.haptics=!store.haptics;save();$("haptics").textContent=store.haptics?"Haptics on":"Haptics off";if(store.haptics){haptic.burst();$("foot").textContent=haptic.native?"You should feel a few taps.":"You should feel a few taps. On iPhone this needs iOS 18 or newer."}});
 $("haptics").textContent=store.haptics?"Haptics on":"Haptics off";
+
+// ---------- ads and the Remove Ads purchase (App Store build only) ----------
+// Calm by design: no ads during play. An interstitial can appear between chambers (from
+// Chamber III, at most every other chamber); "Fresh pieces" is an optional rewarded ad.
+// Buying Remove Ads drops the interstitials and makes Fresh pieces free (once per chamber).
+const ADS={ // Google's public test IDs until Embergem's own AdMob units are filled in
+  interstitial:"ca-app-pub-3940256099942544/4411468910",
+  rewarded:"ca-app-pub-3940256099942544/1712485313"};
+const NOADS_ID="com.embergem.app.removeads";
+const monet=(()=>{
+  const C=window.Capacitor,native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
+  const Ad=native?C.Plugins.AdMob:null,St=native?C.Plugins.Store:null,testing=ADS.interstitial.startsWith("ca-app-pub-3940256099942544");
+  let started=false,interReady=false,rewardReady=false,price=null,privacyNeeded=false,sinceAd=0,busy=false;
+  const noAds=()=>!!store.noAds;
+  function loadInter(){if(!started||noAds())return;interReady=false;Ad.prepareInterstitial({adId:ADS.interstitial,isTesting:testing}).then(()=>{interReady=true}).catch(()=>setTimeout(loadInter,60000))}
+  function loadReward(){if(!started)return;rewardReady=false;Ad.prepareRewardVideoAd({adId:ADS.rewarded,isTesting:testing}).then(()=>{rewardReady=true;refresh()}).catch(()=>setTimeout(loadReward,60000))}
+  async function start(){
+    if(!native)return;
+    try{const o=await St.owned({id:NOADS_ID});if(o.owned!==!!store.noAds){store.noAds=o.owned;save()}}catch(e){}
+    try{St.addListener("entitlement",e=>{if(e.id===NOADS_ID){store.noAds=e.owned;save();refresh()}})}catch(e){}
+    try{const p=await St.product({id:NOADS_ID});if(p.available)price=p.price}catch(e){}
+    try{const info=await Ad.requestConsentInfo();if(info.isConsentFormAvailable&&info.status==="REQUIRED")await Ad.showConsentForm();
+      privacyNeeded=info.privacyOptionsRequirementStatus==="REQUIRED";if(info.canRequestAds===false){refresh();return}}catch(e){}
+    try{await Ad.initialize({initializeForTesting:testing});started=true;Ad.setApplicationMuted({muted:!store.sound}).catch(()=>{});loadInter();loadReward()}catch(e){}
+    refresh();
+  }
+  function refresh(){
+    $("fresh").hidden=!native||freshUsed||over||!(noAds()||rewardReady);
+    $("shop").hidden=!native;$("privacy").hidden=!privacyNeeded;
+    $("noads").disabled=noAds()||!price;$("noads").textContent=noAds()?"Ads removed. Thank you!":price?`Remove ads · ${price}`:"Remove ads";
+  }
+  async function between(next){
+    sinceAd++;
+    if(!started||noAds()||!interReady||lvl<2||sinceAd<2)return next();
+    try{const t=await Ad.trackingAuthorizationStatus();if(t.status==="notDetermined")await Ad.requestTrackingAuthorization()}catch(e){}
+    let done=false;const go=()=>{if(done)return;done=true;sinceAd=0;loadInter();next()};
+    let h;try{h=await Ad.addListener("interstitialAdDismissed",()=>{h&&h.remove();go()})}catch(e){}
+    Ad.showInterstitial().catch(()=>{h&&h.remove();go()});
+  }
+  async function fresh(reward){
+    if(busy)return;if(noAds()){reward();return}
+    if(!rewardReady)return;busy=true;let got=false;
+    let h;try{h=await Ad.addListener("onRewardedVideoAdReward",()=>{got=true})}catch(e){}
+    try{await Ad.showRewardVideoAd();}catch(e){}
+    h&&h.remove();busy=false;loadReward();if(got)reward();refresh();
+  }
+  async function buy(){
+    if(!St||noAds())return;$("noads").disabled=true;$("shopMsg").textContent="";
+    try{const r=await St.purchase({id:NOADS_ID});if(r.owned){store.noAds=true;save();$("shopMsg").textContent="Ads removed. Thank you for supporting Embergem.";haptic.success()}
+      else if(r.pending)$("shopMsg").textContent="Waiting for approval.";}
+    catch(e){$("shopMsg").textContent=e&&e.message?e.message:"The purchase didn't go through."}
+    refresh();
+  }
+  async function restore(){
+    if(!St)return;$("shopMsg").textContent="Checking…";
+    try{const r=await St.restore({id:NOADS_ID});store.noAds=r.owned;save();$("shopMsg").textContent=r.owned?"Restored. Ads are off.":"No earlier purchase found."}
+    catch(e){$("shopMsg").textContent="Couldn't reach the App Store."}
+    refresh();
+  }
+  function privacy(){Ad&&Ad.showPrivacyOptionsForm().catch(()=>{})}
+  return{start,refresh,between,fresh,buy,restore,privacy,native,mute:m=>{if(started)Ad.setApplicationMuted({muted:m}).catch(()=>{})}};
+})();
 
 // ---------- sound: glassy, low, calm ----------
 const sound=(()=>{let ac,out,rev;
@@ -451,5 +531,5 @@ const sound=(()=>{let ac,out,rev;
 ["pointerdown","touchend","click","keydown"].forEach(ev=>addEventListener(ev,()=>sound.unlock(),{capture:true,passive:true}));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)sound.unlock()});
 addEventListener("resize",layout);
-layout();newGame();requestAnimationFrame(render);
+layout();newGame();requestAnimationFrame(render);monet.start();
 </script>
