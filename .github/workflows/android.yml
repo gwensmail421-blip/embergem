@@ -1,0 +1,66 @@
+# Builds the Android app on a GitHub Linux runner.
+# Always produces a debug APK (installable for testing). When the upload-key secrets
+# exist it also produces a signed release bundle (.aab) for Google Play.
+name: Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["game/**", "android/**", "capacitor.config.json", "package*.json", ".github/workflows/android.yml"]
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build web bundle and sync Android
+        run: |
+          npm ci
+          node scripts/build-web.js
+          npx cap sync android
+
+      - name: Debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: embergem-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Signed release bundle
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+        working-directory: android
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::notice::No upload key secrets yet, skipping the Play bundle"; exit 0; fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/upload.jks" ./gradlew --no-daemon bundleRelease
+          rm -f "$RUNNER_TEMP/upload.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: embergem-play-bundle
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: ignore

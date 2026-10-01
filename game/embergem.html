@@ -37,7 +37,7 @@ canvas{touch-action:none;display:block;max-width:100%}
 button{font-family:var(--display);font-size:15px;letter-spacing:.12em;color:var(--void);background:var(--gold);border:0;border-radius:999px;padding:10px 22px;cursor:pointer}
 button.ghost{background:transparent;color:var(--bone);border:1px solid var(--rim)}
 button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
-.veil{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding-inline:16px;background:color-mix(in srgb,var(--void) 80%,transparent);animation:fade .8s ease both}
+.veil{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding-inline:16px;background:color-mix(in srgb,var(--void) 92%,transparent);animation:fade .8s ease both}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .card{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;max-width:360px}
 .card h2{font-family:var(--display);font-weight:400;color:var(--gold);font-size:28px;margin:0;letter-spacing:.06em}
@@ -46,6 +46,14 @@ button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
 .card p.gift{color:var(--gold-hi);font-style:italic}
 .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .row button.ghost{padding:10px 16px}
+button.mode{display:flex;flex-direction:column;gap:2px;align-items:center;padding:12px 16px;border-radius:16px;background:rgba(241,220,174,.06);border:1px solid var(--rim);color:var(--bone);font-family:var(--display);font-size:20px;letter-spacing:.06em}
+button.mode small{font-family:var(--body);font-style:italic;font-size:14px;color:var(--mist);letter-spacing:0}
+.card p.age{font-style:italic;font-size:15px}
+.skins{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.skin{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border-radius:12px;background:none;border:1px solid var(--rim);color:var(--bone);font-family:var(--body);font-size:13px;min-width:62px}
+.skin.on{border-color:var(--gold);box-shadow:0 0 10px rgba(200,167,106,.45)}
+.skin .sw{display:flex;gap:2px}.skin .sw i{width:9px;height:14px;border-radius:2px;display:block}
+.skin small{color:var(--gold);font-size:12px}
 .boosts{display:flex;gap:8px;justify-content:center}
 .boost{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:62px;padding:6px 8px;border-radius:14px;background:rgba(241,220,174,.06);border:1px solid var(--rim);color:var(--bone);font-family:var(--body);font-size:14px;letter-spacing:.02em}
 .boost span{font-size:18px;line-height:1;color:var(--gold)}
@@ -78,10 +86,20 @@ button:disabled{opacity:.45}
 </div>
 <canvas id="fx" aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;z-index:4"></canvas>
 <div class="veil" id="veil" hidden></div>
+<div class="veil" id="modes" hidden><div class="card col">
+  <h2>Modes</h2>
+  <button class="mode" id="mDaily" type="button">Daily</button>
+  <button class="mode" id="mChamb" type="button">Chambers</button>
+  <button class="mode" id="mEndless" type="button">Endless</button>
+  <p class="age" id="dragonAge"></p>
+  <button class="link" id="lbBtn" type="button" hidden>Leaderboards</button>
+  <button class="ghost" id="closeModes" type="button">Close</button>
+</div></div>
 <div class="veil" id="settings" hidden><div class="card col">
   <h2>Settings</h2>
   <button class="ghost" id="sound" type="button">Sound on</button>
   <button class="ghost" id="haptics" type="button">Haptics on</button>
+  <p class="age">Gem skins</p><div class="skins" id="skins"></div>
   <div class="col" id="shop" hidden><button id="noads" type="button">Remove ads</button><button class="link" id="restore" type="button">Restore purchase</button></div>
   <button class="link" id="privacy" type="button" hidden>Privacy choices</button>
   <button class="ghost" id="closeSet" type="button">Done</button>
@@ -95,6 +113,7 @@ function load(){try{return JSON.parse((localStorage.getItem("embergem")||localSt
 function save(){try{localStorage.setItem("embergem",JSON.stringify(store))}catch(e){}}
 const store=Object.assign({best:0,sound:true,haptics:true,embers:5},load());
 
+
 // Jewel tones: [base, light, deep]
 const GEMS=[
  {n:"garnet",c:["#8c1d3c","#e0587c","#3d0a1a"]},
@@ -104,6 +123,21 @@ const GEMS=[
  {n:"topaz",c:["#9a6b22","#f0c56a","#3d2808"]},
  {n:"moonstone",c:["#5d6a80","#c9d4e6","#222834"]},
 ];
+// gem skins bought with embers; every skin keeps six clearly different hues
+const SKINS={
+  classic:{name:"Classic",cost:0,c:GEMS.map(g=>g.c)},
+  obsidian:{name:"Obsidian",cost:60,c:[["#3a0d18","#ff5c7a","#0a0306"],["#24113a","#c08cff","#07030d"],["#0c2a20","#4dffb8","#020a07"],["#0d1d3a","#6fb2ff","#02060d"],["#3a2a0d","#ffcf5c","#0d0902"],["#22262e","#e6eeff","#06070a"]]},
+  bloodmoon:{name:"Blood Moon",cost:80,c:[["#7a0f14","#ff4a3d","#2a0405"],["#5c1730","#e0628a","#1f060f"],["#7a3a12","#ff9a4a","#2a1205"],["#3d0d0d","#a8433a","#140303"],["#8a6a1a","#ffd36a","#2e2306"],["#4a3a40","#c9a8b0","#1a1316"]]},
+  bone:{name:"Bone",cost:80,c:[["#b8a88a","#f4ead2","#5a4e38"],["#7a6a5a","#c8b8a4","#2e261e"],["#5e6b4a","#a8b88e","#20281a"],["#5a6470","#aab4c0","#1e232a"],["#8a5a3a","#d8a07a","#3a2214"],["#3a3430","#8a8078","#141210"]]},
+  frost:{name:"Frost",cost:100,c:[["#2a6a8a","#9ae6ff","#0a2836"],["#5a4a8a","#c8b8ff","#1e1836"],["#2a7a6a","#9affe0","#0a2e28"],["#14306a","#5a8aff","#060f26"],["#8a9aa8","#ffffff","#3a444e"],["#6a3a7a","#e8a8ff","#26122e"]]}};
+function applySkin(){const sk=SKINS[store.skin]||SKINS.classic;GEMS.forEach((g,i)=>g.c=sk.c[i])}
+function renderSkins(){
+  const own=store.skins||["classic"];
+  $("skins").innerHTML=Object.entries(SKINS).map(([k,sk])=>`<button class="skin${(store.skin||"classic")===k?" on":""}" data-k="${k}" type="button"><span class="sw">${sk.c.map(c=>`<i style="background:linear-gradient(${c[1]},${c[0]} 60%,${c[2]})"></i>`).join("")}</span>${sk.name}${own.includes(k)?"":`<small>✦ ${sk.cost}</small>`}</button>`).join("");
+  $("skins").querySelectorAll(".skin").forEach(b=>b.onclick=()=>{const k=b.dataset.k,sk=SKINS[k];const own=store.skins||["classic"];
+    if(!own.includes(k)){if((store.embers||0)<sk.cost){$("shopMsg").textContent=`${sk.name} costs ${sk.cost} embers. You have ${store.embers||0}.`;return}store.embers-=sk.cost;store.skins=[...own,k];$("shopMsg").textContent=`${sk.name} gems are yours.`;haptic.success();sound.vein()}
+    store.skin=k;save();applySkin();renderSkins();renderGoals();boostUI()});
+}
 const SHAPES=[
  [[0,0]],
  [[0,0],[1,0]],[[0,0],[0,1]],
@@ -156,8 +190,8 @@ const MOTIFS=[
  (x,y)=>(x===0||y===0||x===7||y===7)&&(x+y)%2===0,                             // studded frame
  (x,y)=>((x===1||x===6)&&y>0&&y<7||(y===1||y===6)&&x>0&&x<7)&&(x+y)%3!==0,     // broken ring
 ];
-function setupChamber(n){
-  const r=(()=>{let s=n*9301+49297;return()=>{s=(s*233280+49297)%2147483647;return s/2147483647}})();
+function setupChamber(n,seed=n){
+  const r=(()=>{let s=seed*9301+49297;return()=>{s=(s*233280+49297)%2147483647;return s/2147483647}})();
   const k=n<3?1:n<6?2:3,pool=[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k);
   const each=Math.min(40,k===1?8+3*n:k===2?6+2*n:5+Math.round(1.5*n));
   goals=pool.map(g=>({g,need:each,got:0,shown:0}));
@@ -166,7 +200,7 @@ function setupChamber(n){
 }
 function renderGoals(bumpG){
   $("goals").innerHTML=goals.map(q=>{const c=GEMS[q.g].c;return`<span class="goal${(q.shown??q.got)>=q.need?" done":""}${bumpG&&bumpG.has(q.g)?" bump":""}" title="${GEMS[q.g].n}"><i style="background:linear-gradient(135deg,${c[1]},${c[0]} 50%,${c[2]})"></i><b>${Math.min(q.shown??q.got,q.need)}</b><small>/ ${q.need}</small></span>`}).join("");
-  if(mode==="endless"){$("chamber").textContent="Endless";updScore();return}$("moves").textContent=moves;$("chamber").textContent=`Chamber ${roman(lvl)}`;
+  if(mode==="endless"){$("chamber").textContent="Endless";updScore();return}if(mode==="daily"){$("moves").textContent=moves;$("chamber").textContent=`Daily #${dailyNo()}`;return}$("moves").textContent=moves;$("chamber").textContent=`Chamber ${roman(lvl)}`;
 }
 function claim(cells,pureBonus,fromXY){ // cells: gem ids cleared
   const bumped=new Set();cells.forEach(g=>{const q=goals.find(q=>q.g===g);if(q&&q.got<q.need){q.got=Math.min(q.need,q.got+(pureBonus?2:1));bumped.add(g)}});
@@ -175,21 +209,27 @@ function claim(cells,pureBonus,fromXY){ // cells: gem ids cleared
 }
 function chamberDone(){
   const stars=moves<=par?3:moves<=Math.ceil(par*1.4)?2:1;
-  store.stars=store.stars||{};if(!reduced)for(let j=0;j<90;j++)particles.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*2,vy:Math.random()*3,s:cell*(.1+Math.random()*.14),c:GEMS[goals[j%goals.length].g].c[j%2],life:120+Math.random()*60,rot:Math.random()*6,vr:(Math.random()-.5)*.2});store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=lvl+1;const gift=2+stars*2;store.embers=(store.embers||0)+gift;save();sound.done(stars);
+  store.stars=store.stars||{};if(!reduced)for(let j=0;j<90;j++)particles.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*2,vy:Math.random()*3,s:cell*(.1+Math.random()*.14),c:GEMS[goals[j%goals.length].g].c[j%2],life:120+Math.random()*60,rot:Math.random()*6,vr:(Math.random()-.5)*.2});let gift=2+stars*2;if(mode==="daily"){store.daily=store.daily||{};const k=todayKey(),first=!store.daily[k];if(first){store.daily[k]={moves,stars};gift=6+stars*3;gc.submit(LB.daily,moves)}else gift=0}else{store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=Math.max(store.level||1,lvl+1);gc.submit(LB.chambers,lvl)}store.embers=(store.embers||0)+gift;save();sound.done(stars);
   const v=$("veil");v.hidden=false;
-  v.innerHTML=`<div class="card"><h2>Chamber ${roman(lvl)} claimed</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
-    <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p><p class="gift">+${gift} ✦ embers</p>
-    <div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div></div>`;
+  v.innerHTML=`<div class="card"><h2>${mode==="daily"?`Daily #${dailyNo()} claimed`:`Chamber ${roman(lvl)} claimed`}</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
+    <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
+    ${mode==="daily"?`<div class="row"><button class="ghost" id="shareD" type="button">Share</button><button id="nextc" type="button">Back to chambers</button></div>`:`<div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div>`}</div>`;
+  if(mode==="daily"){const r=store.daily[todayKey()];$("shareD").onclick=()=>shareText(`Embergem Daily #${dailyNo()} 🐉\n${"💎".repeat(r.stars)}${"🖤".repeat(3-r.stars)}  ${r.moves} moves`);$("nextc").onclick=()=>monet.between(()=>{setMode("chambers")});return}
   $("nextc").onclick=()=>monet.between(()=>{lvl++;newGame()});$("again").onclick=newGame;
 }
-function newGame(){freshUsed=false;undoSnap=null;aiming=false;revived=false;runBest=false;$("statLbl").textContent=mode==="endless"?"Score":"Moves";$("modeBtn").textContent=mode==="endless"?"Chambers":"Endless";board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;if(mode==="endless"){goals=[];par=0}else setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[];monet.refresh()}
-function rnd(a){return a[Math.floor(Math.random()*a.length)]}
-let dealGems=[0,1,2],freshUsed=false,mode=store.mode==='endless'?'endless':'chambers',undoSnap=null,aiming=false,revived=false,runBest=false;
+function newGame(){freshUsed=false;undoSnap=null;aiming=false;revived=false;runBest=false;$("statLbl").textContent=mode==="endless"?"Score":"Moves";$("modeBtn").textContent="Modes";board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;R=Math.random;if(mode==="endless"){goals=[];par=0}else if(mode==="daily"){const d=dailyNo();setupChamber(4+d%6,d*7919+13);R=seeded(d*2654435761)}else setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=mode==="daily"?(store.daily&&store.daily[todayKey()]?"You already claimed today. Replays don't change your result.":"Today's chamber is the same for everyone. Fewest moves wins."):mode==="endless"?"Score as high as you can. Scored like other block games, so you can compare.":lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[];monet.refresh()}
+const todayKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const dailyNo=()=>Math.floor((Date.parse(todayKey()+"T12:00:00")-Date.parse("2026-10-01T12:00:00"))/864e5)+1;
+// pieces come from R(): Math.random normally, a date-seeded stream in the Daily Chamber
+let R=Math.random;
+const seeded=seed=>{let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}};
+function rnd(a){return a[Math.floor(R()*a.length)]}
+let dealGems=[0,1,2],freshUsed=false,mode=['endless','daily'].includes(store.mode)?store.mode:'chambers',undoSnap=null,aiming=false,revived=false,runBest=false;
 function makePiece(){const s=rnd(SHAPES);return{cells:s,g:rnd(dealGems),w:Math.max(...s.map(c=>c[0]))+1,h:Math.max(...s.map(c=>c[1]))+1}}
 function fits(p,gx,gy){return p.cells.every(([x,y])=>{const X=gx+x,Y=gy+y;return X>=0&&Y>=0&&X<N&&Y<N&&board[Y][X]<0})}
 function anyFit(p){for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y))return true;return false}
 function dealTray(){
-  dealGems=goals.length?[...goals.map(q=>q.g),...goals.map(q=>q.g),Math.floor(Math.random()*GEMS.length)]:[0,1,2].map(()=>Math.floor(Math.random()*GEMS.length));
+  dealGems=goals.length?[...goals.map(q=>q.g),...goals.map(q=>q.g),Math.floor(R()*GEMS.length)]:[0,1,2].map(()=>Math.floor(R()*GEMS.length));
   for(let t=0;t<12;t++){const tr=[makePiece(),makePiece(),makePiece()];if(!board||tr.some(anyFit)||t===11)return tr}
 }
 function updScore(){
@@ -213,8 +253,21 @@ function ringPoints(){
   return pts;
 }
 let RING=null,dragonHead=null;
+const AGES=[
+  {name:"a hatchling",at:0,deep:"#0e0c12",mid:"#221e2a",head:"#3b3446",scale:.22,glow:null},
+  {name:"a wyrmling",at:300,deep:"#120c12",mid:"#2a1f2e",head:"#463a4f",scale:.3,glow:null},
+  {name:"a young ember-wyrm",at:1000,deep:"#140a0c",mid:"#2e1a1c",head:"#52323a",scale:.38,glow:"rgba(255,120,60,.22)"},
+  {name:"a bronze drake",at:2500,deep:"#150f0a",mid:"#33261a",head:"#5c4630",scale:.5,glow:"rgba(255,150,70,.3)"},
+  {name:"an elder flame",at:5000,deep:"#16080a",mid:"#3a1418",head:"#6a2a2c",scale:.6,glow:"rgba(255,90,50,.4)"},
+  {name:"an ancient gold wyrm",at:10000,deep:"#1a140a",mid:"#4a3a1c",head:"#8a6c34",scale:.75,glow:"rgba(255,210,120,.5)"}];
+function dragonStage(){const t=store.hoardTotal||0;let i=0;AGES.forEach((a,k)=>{if(t>=a.at)i=k});const n=AGES[i+1];return{...AGES[i],i,next:n?n.at-t:0}}
+function hoard(n){
+  const before=dragonStage().i;store.hoardTotal=(store.hoardTotal||0)+n;save();const st=dragonStage();
+  if(st.i>before)setTimeout(()=>{const tn=performance.now();texts.push({s:"Your dragon grew",x:W/2,y:by+cell*1.3,t:tn,size:Math.min(W*.06,26)});texts.push({s:st.name.replace(/^an? /,""),x:W/2,y:by+cell*2,t:tn,size:Math.min(W*.045,19)});sound.done(3);haptic.success();
+    if(!reduced)for(let j=0;j<70;j++)particles.push({x:W/2,y:by-cell*.4,vx:(Math.random()-.5)*9,vy:-Math.random()*6,s:cell*(.08+Math.random()*.1),c:st.glow?"#ffb46a":"#c8a76a",life:80+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})},900);
+}
 function drawDragon(now){
-  if(!RING)RING=ringPoints();
+  if(!RING)RING=ringPoints();const D=dragonStage();
   const c=cell,n=RING.length,cxB=bx+c*N/2,cyB=by+c*N/2;
   const rate=.0016+.0022*eyeO,breath=1+(.025+.03*eyeO)*Math.sin(now*rate);
   const F=RING.map((p,i)=>{const a=RING[Math.max(0,i-1)],b=RING[Math.min(n-1,i+1)];let tx=b[0]-a[0],ty=b[1]-a[1];const l=Math.hypot(tx,ty)||1;tx/=l;ty/=l;let nx=-ty,ny=tx;if((p[0]-cxB)*nx+(p[1]-cyB)*ny<0){nx=-nx;ny=-ny}return{x:p[0],y:p[1],tx,ty,nx,ny}});
@@ -224,21 +277,22 @@ function drawDragon(now){
   // dorsal spines on the outer edge
   for(let i=Math.round(n*.05);i<n*.95;i+=Math.round(c*.42/(c*.06))){const f=F[i],w=ws[i],hgt=c*.24*(w/(c*.5));
     ctx.beginPath();ctx.moveTo(f.x+f.nx*w*.35-f.tx*c*.12,f.y+f.ny*w*.35-f.ty*c*.12);ctx.lineTo(f.x+f.nx*(w*.5+hgt)-f.tx*c*.14,f.y+f.ny*(w*.5+hgt)-f.ty*c*.14);ctx.lineTo(f.x+f.nx*w*.35+f.tx*c*.1,f.y+f.ny*w*.35+f.ty*c*.1);ctx.closePath();
-    ctx.fillStyle="#211c28";ctx.fill();ctx.strokeStyle="rgba(200,167,106,.35)";ctx.lineWidth=1;ctx.stroke()}
+    ctx.fillStyle=D.mid;ctx.fill();ctx.strokeStyle=`rgba(200,167,106,${.25+D.scale*.5})`;ctx.lineWidth=1;ctx.stroke()}
   ctx.fillStyle="rgba(0,0,0,.55)";path(1.08,c*.04,c*.07);ctx.fill();
-  ctx.fillStyle="#0e0c12";path(1);ctx.fill();
-  ctx.fillStyle="#221e2a";path(.74);ctx.fill();
+  if(D.glow){ctx.save();ctx.shadowColor=D.glow;ctx.shadowBlur=c*(.5+.15*Math.sin(now*.002));ctx.fillStyle=D.deep;path(1);ctx.fill();ctx.restore()}
+  ctx.fillStyle=D.deep;path(1);ctx.fill();
+  ctx.fillStyle=D.mid;path(.74);ctx.fill();
   ctx.save();path(1);ctx.clip();
   // overlapping scales, catching a little gold
   ctx.lineWidth=Math.max(.7,c*.016);
   for(let i=1;i<n-1;i+=2){const f=F[i],w=ws[i];for(let r=-2;r<=2;r++){const o=(r+((i/2|0)%2?.5:0))*w*.2;if(Math.abs(o)>w*.48)continue;const x=f.x+f.nx*o,y=f.y+f.ny*o,L=c*.06;
     ctx.beginPath();ctx.moveTo(x-f.tx*L+f.nx*L*.8,y-f.ty*L+f.ny*L*.8);ctx.quadraticCurveTo(x+f.tx*L*.3,y+f.ty*L*.3,x-f.tx*L-f.nx*L*.8,y-f.ty*L-f.ny*L*.8);
-    ctx.strokeStyle=Math.abs(r)<1?"rgba(200,167,106,.22)":"rgba(0,0,0,.45)";ctx.stroke()}}
+    ctx.strokeStyle=Math.abs(r)<1?`rgba(200,167,106,${D.scale})`:"rgba(0,0,0,.45)";ctx.stroke()}}
   ctx.fillStyle="rgba(150,120,200,.12)";path(.2,-c*.02,-c*.03);ctx.fill();
   ctx.restore();
   ctx.strokeStyle="rgba(0,0,0,.7)";ctx.lineWidth=1.2;path(1);ctx.stroke();
   // tail spade
-  const tf=F[n-1];ctx.save();ctx.translate(tf.x,tf.y);ctx.rotate(Math.atan2(tf.ty,tf.tx));ctx.beginPath();ctx.moveTo(c*.22,0);ctx.lineTo(0,-c*.12);ctx.lineTo(-c*.05,0);ctx.lineTo(0,c*.12);ctx.closePath();ctx.fillStyle="#221e2a";ctx.fill();ctx.strokeStyle="rgba(200,167,106,.4)";ctx.stroke();ctx.restore();
+  const tf=F[n-1];ctx.save();ctx.translate(tf.x,tf.y);ctx.rotate(Math.atan2(tf.ty,tf.tx));ctx.beginPath();ctx.moveTo(c*.22,0);ctx.lineTo(0,-c*.12);ctx.lineTo(-c*.05,0);ctx.lineTo(0,c*.12);ctx.closePath();ctx.fillStyle=D.mid;ctx.fill();ctx.strokeStyle="rgba(200,167,106,.4)";ctx.stroke();ctx.restore();
   dragonHead=[F[0],breath];
   ctx.restore();
 }
@@ -253,7 +307,7 @@ function drawDragonHead(f,now,breath){
   [-1,1].forEach(k=>{ctx.beginPath();ctx.moveTo(-c*.02,k*c*.22);ctx.quadraticCurveTo(-c*.3,k*c*.5,-c*.5,k*c*.78);ctx.quadraticCurveTo(-c*.3,k*c*.36,-c*.2,k*c*.08);ctx.closePath();
     const hg=ctx.createLinearGradient(0,0,-c*.5,k*c*.78);hg.addColorStop(0,"#3a3330");hg.addColorStop(1,"#c9b48a");ctx.fillStyle=hg;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.6)";ctx.lineWidth=1;ctx.stroke()});
   ctx.fillStyle="rgba(0,0,0,.55)";ctx.save();ctx.translate(-c*.07,c*.05);head();ctx.fill();ctx.restore();
-  const g=ctx.createRadialGradient(c*.3,0,c*.05,c*.3,0,c*.7);g.addColorStop(0,"#3b3446");g.addColorStop(.6,"#211d28");g.addColorStop(1,"#0d0b10");head();ctx.fillStyle=g;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.8)";ctx.lineWidth=1.2;ctx.stroke();
+  const g=ctx.createRadialGradient(c*.3,0,c*.05,c*.3,0,c*.7);const D=dragonStage();g.addColorStop(0,D.head);g.addColorStop(.6,D.mid);g.addColorStop(1,"#0d0b10");head();ctx.fillStyle=g;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.8)";ctx.lineWidth=1.2;ctx.stroke();
   ctx.save();head();ctx.clip();ctx.strokeStyle="rgba(200,167,106,.16)";ctx.lineWidth=Math.max(.6,c*.012);
   for(let x=-.25;x<.95;x+=.09)for(let y=-.32;y<=.32;y+=.09){ctx.beginPath();ctx.arc(c*x,c*y,c*.045,Math.PI*.6,Math.PI*1.4);ctx.stroke()}
   ctx.strokeStyle="rgba(200,167,106,.35)";ctx.lineWidth=c*.02;ctx.beginPath();ctx.moveTo(c*.95,0);ctx.lineTo(-c*.25,0);ctx.stroke();ctx.restore();
@@ -421,7 +475,7 @@ function place(k,gx,gy){
     const words=["","Claimed","Double hoard","Triple hoard","Dragon's ransom","Legendary"];
     texts.push({s:pure.length?`Pure ${GEMS[pure[0]].n} vein · counts double`:(words[Math.min(lines,5)])+(combo>1?`  ·  combo ×${combo}`:""),x:W/2,y:by+cell*N/2,t:now,size:Math.min(W*.07,30)});
     if(pure.length){contentUntil=now+2600;sound.vein();if(!reduced)for(let j=0;j<60;j++)particles.push({x:W/2,y:by+cell*N/2,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12-3,s:cell*(.1+Math.random()*.14),c:GEMS[pure[0]].c[1],life:70+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}
-    pops.forEach(q=>{if(q.t>=now-1)q.pure=pure.length>0});claim(got,pure.length>0);
+    pops.forEach(q=>{if(q.t>=now-1)q.pure=pure.length>0});claim(got,pure.length>0);hoard(got.length);
     shake=Math.min(6,2+lines+combo*.5);sound.clear(lines,combo);haptic.burst();
     $("foot").textContent=pure.length?"A pure vein. The dragon smiles in its sleep.":combo>1?`Combo ×${combo}.`:"Claimed for the hoard.";
   }else{movesSinceClear++;if(movesSinceClear>=3&&combo){combo=0;$("foot").textContent="The combo cooled."}}
@@ -453,7 +507,7 @@ function gameOver(){
 function buzz(ms){haptic.fire(ms)}
 // ---------- endless: the run ends when nothing fits; one revive per run ----------
 function endRun(){
-  if(over||tray.some(x=>x&&anyFit(x)))return;over=true;sound.end();
+  if(over||tray.some(x=>x&&anyFit(x)))return;over=true;sound.end();gc.submit(LB.endless,score);
   const gift=Math.floor(score/250);store.embers=(store.embers||0)+gift;save();boostUI();
   const v=$("veil");v.hidden=false;const canEmb=(store.embers||0)>=10,canAd=monet.canReward();
   v.innerHTML=`<div class="card"><h2>The hoard is full</h2><div class="big">${score.toLocaleString()}</div>
@@ -465,8 +519,8 @@ function endRun(){
   if($("revAd"))$("revAd").onclick=()=>monet.rewarded(revive);
   if($("revEmb"))$("revEmb").onclick=()=>{store.embers-=10;save();revive()};
 }
-function shareScore(n){
-  const text=`I scored ${n.toLocaleString()} in Embergem's Endless Hoard 🐉💎 Can you beat it?`;
+function shareScore(n){shareText(`I scored ${n.toLocaleString()} in Embergem's Endless Hoard 🐉💎 Can you beat it?`)}
+function shareText(text){
   const S=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Share;
   if(S&&S.share)S.share({text,dialogTitle:"Share your score"}).catch(()=>{});
   else if(navigator.share)navigator.share({text}).catch(()=>{});
@@ -487,7 +541,7 @@ $("bEmbers").onclick=()=>{if(!monet.canReward()){$("foot").textContent=`You have
 function claw(cx,cy){
   aiming=false;undoSnap=null;const now=performance.now(),got=[];
   for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){if(x<0||y<0||x>=N||y>=N||board[y][x]<0)continue;const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:(Math.abs(x-cx)+Math.abs(y-cy))*70),j:got.length,pure:false})}
-  if(got.length){claim(got,false);sound.clear(1,1);haptic.burst();shake=4;$("foot").textContent="The claw shatters the gems into the hoard."}
+  if(got.length){claim(got,false);hoard(got.length);sound.clear(1,1);haptic.burst();shake=4;$("foot").textContent="The claw shatters the gems into the hoard."}
   boostUI();updScore();
 }
 // ---------- daily gift: a small present each day; a missed day just lets the streak sleep ----------
@@ -499,9 +553,17 @@ function dailyGift(){
   v.innerHTML=`<div class="card"><h2>A gift from the hoard</h2><div class="big">+${n} ✦</div><p>Day ${streak} of 7. Come back tomorrow for a bigger one.<br>Missed days never break it.</p><button id="take" type="button">Take it</button></div>`;
   $("take").onclick=()=>{v.hidden=true;sound.vein();haptic.success()};
 }
-$("modeBtn").onclick=()=>{mode=mode==="endless"?"chambers":"endless";store.mode=mode;save();newGame();$("foot").textContent=mode==="endless"?"Endless Hoard: score as high as you can. Scored like other block games, so you can compare.":"Back to the chambers."};
+function setMode(m){mode=m;store.mode=m;save();$("modes").hidden=true;newGame()}
+$("modeBtn").onclick=()=>{const d=store.daily&&store.daily[todayKey()],st=dragonStage();
+  $("mDaily").innerHTML=`Daily #${dailyNo()}<small>${d?`${"★".repeat(d.stars)} in ${d.moves} moves · done`:"Same chamber for everyone today"}</small>`;
+  $("mChamb").innerHTML=`Chambers<small>Chamber ${roman(store.level||lvl)} · calm, no ending</small>`;
+  $("mEndless").innerHTML=`Endless<small>Best ${(store.best||0).toLocaleString()} · scored like other block games</small>`;
+  $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} gems hoarded${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
+  $("lbBtn").hidden=!gc.available();$("modes").hidden=false};
+$("mDaily").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
+$("closeModes").onclick=()=>{$("modes").hidden=true};$("lbBtn").onclick=()=>gc.show();
 $("restart").onclick=newGame;
-$("settingsBtn").onclick=()=>{$("shopMsg").textContent="";monet.refresh();$("settings").hidden=false};
+$("settingsBtn").onclick=()=>{$("shopMsg").textContent="";renderSkins();monet.refresh();$("settings").hidden=false};
 $("closeSet").onclick=()=>{$("settings").hidden=true};
 $("noads").onclick=()=>monet.buy();$("restore").onclick=()=>monet.restore();$("privacy").onclick=()=>monet.privacy();
 $("sound").onclick=()=>{store.sound=!store.sound;save();monet.mute(!store.sound);$("sound").textContent=store.sound?"Sound on":"Sound off";if(store.sound){sound.unlock();sound.test();setTimeout(()=>{$("foot").textContent=`Sound check: ${sound.state()}. You should hear a soft chime.`},350)}};
@@ -519,7 +581,7 @@ const ADS={ // Google's public test IDs until Embergem's own AdMob units are fil
 const NOADS_ID="com.embergem.app.removeads";
 const monet=(()=>{
   const C=window.Capacitor,native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
-  const Ad=native?C.Plugins.AdMob:null,St=native?C.Plugins.Store:null,testing=ADS.interstitial.startsWith("ca-app-pub-3940256099942544");
+  const Ad=native?C.Plugins.AdMob:null,St=native&&C.getPlatform&&C.getPlatform()==="ios"?C.Plugins.Store:null,testing=ADS.interstitial.startsWith("ca-app-pub-3940256099942544");
   let started=false,interReady=false,rewardReady=false,price=null,privacyNeeded=false,sinceAd=0,busy=false;
   const noAds=()=>!!store.noAds;
   function loadInter(){if(!started||noAds())return;interReady=false;Ad.prepareInterstitial({adId:ADS.interstitial,isTesting:testing}).then(()=>{interReady=true}).catch(()=>setTimeout(loadInter,60000))}
@@ -536,7 +598,7 @@ const monet=(()=>{
   }
   function refresh(){
     boostUI();
-    $("shop").hidden=!native;$("privacy").hidden=!privacyNeeded;
+    $("shop").hidden=!native||!St;$("privacy").hidden=!privacyNeeded;
     $("noads").disabled=noAds()||!price;$("noads").textContent=noAds()?"Ads removed. Thank you!":price?`Remove ads · ${price}`:"Remove ads";
   }
   async function between(next){
@@ -572,6 +634,13 @@ const monet=(()=>{
   return{start,refresh,between,rewarded,canReward:()=>native&&(noAds()?(store.freeDay!==new Date().toISOString().slice(0,10)||(store.freeCount||0)<3):rewardReady),buy,restore,privacy,native,mute:m=>{if(started)Ad.setApplicationMuted({muted:m}).catch(()=>{})}};
 })();
 
+// ---------- Game Center leaderboards (iPhone app only) ----------
+const LB={endless:"embergem.endless",chambers:"embergem.chambers",daily:"embergem.daily"};
+const gc=(()=>{const C=window.Capacitor,P=C&&C.isNativePlatform&&C.isNativePlatform()&&C.getPlatform&&C.getPlatform()==="ios"&&C.Plugins.GameCenter;let ok=false;
+  return{start(){if(P)P.auth().then(r=>{ok=!!r.authenticated}).catch(()=>{})},available:()=>ok,
+    submit(id,value){if(ok&&value>0)P.submit({id,score:Math.round(value)}).catch(()=>{})},
+    show(){if(ok)P.show({}).catch(()=>{})}}})();
+
 // ---------- sound: glassy, low, calm ----------
 const sound=(()=>{let ac,out,rev;
   const S=[220,246.94,261.63,329.63,349.23,440,493.88,523.25,659.25,698.46,880,987.77,1046.5];
@@ -602,5 +671,5 @@ const sound=(()=>{let ac,out,rev;
 ["pointerdown","touchend","click","keydown"].forEach(ev=>addEventListener(ev,()=>sound.unlock(),{capture:true,passive:true}));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)sound.unlock()});
 addEventListener("resize",layout);
-layout();newGame();requestAnimationFrame(render);monet.start();dailyGift();
+applySkin();layout();newGame();requestAnimationFrame(render);monet.start();dailyGift();gc.start();
 </script>

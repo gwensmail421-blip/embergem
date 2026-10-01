@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import StoreKit
+import GameKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -28,6 +29,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(StorePlugin())
+        bridge?.registerPluginInstance(GameCenterPlugin())
     }
 }
 
@@ -110,5 +112,52 @@ public class StorePlugin: CAPPlugin, CAPBridgedPlugin {
             try? await AppStore.sync()
             call.resolve(["owned": await self.isOwned(id)])
         }
+    }
+}
+
+/// Game Center sign-in, score submission and the leaderboard sheet. JS sees it as Capacitor.Plugins.GameCenter.
+@objc(GameCenterPlugin)
+public class GameCenterPlugin: CAPPlugin, CAPBridgedPlugin, GKGameCenterControllerDelegate {
+    public let identifier = "GameCenterPlugin"
+    public let jsName = "GameCenter"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "auth", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "submit", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "show", returnType: CAPPluginReturnPromise)
+    ]
+
+    @objc func auth(_ call: CAPPluginCall) {
+        let player = GKLocalPlayer.local
+        if player.isAuthenticated { return call.resolve(["authenticated": true]) }
+        var answered = false
+        player.authenticateHandler = { [weak self] vc, _ in
+            // Game Center's own sign-in sheet appears only if the player isn't signed in on the device
+            if let vc = vc {
+                DispatchQueue.main.async { self?.bridge?.viewController?.present(vc, animated: true) }
+                return
+            }
+            if !answered { answered = true; call.resolve(["authenticated": GKLocalPlayer.local.isAuthenticated]) }
+        }
+    }
+
+    @objc func submit(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), let score = call.getInt("score") else { return call.reject("id and score required") }
+        guard GKLocalPlayer.local.isAuthenticated else { return call.reject("not signed in") }
+        GKLeaderboard.submitScore(score, context: 0, player: GKLocalPlayer.local, leaderboardIDs: [id]) { error in
+            if let error = error { call.reject(error.localizedDescription) } else { call.resolve() }
+        }
+    }
+
+    @objc func show(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let vc = GKGameCenterViewController(state: .leaderboards)
+            vc.gameCenterDelegate = self
+            self.bridge?.viewController?.present(vc, animated: true)
+            call.resolve()
+        }
+    }
+
+    public func gameCenterViewControllerDidFinish(_ gameCenterViewController: GKGameCenterViewController) {
+        gameCenterViewController.dismiss(animated: true)
     }
 }
