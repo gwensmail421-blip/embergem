@@ -605,7 +605,7 @@ const monet=(()=>{
   function refresh(){
     boostUI();
     $("shop").hidden=!native||!St;$("privacy").hidden=!privacyNeeded;
-    $("noads").disabled=noAds()||!price;$("noads").textContent=noAds()?"Ads removed. Thank you!":price?`Remove ads · ${price}`:"Remove ads";
+    $("noads").disabled=noAds();$("noads").textContent=noAds()?"Ads removed. Thank you!":price?`Remove ads · ${price}`:"Remove ads";
   }
   async function between(next){
     sinceAd++;
@@ -624,7 +624,10 @@ const monet=(()=>{
     h&&h.remove();busy=false;loadReward();if(got)reward();refresh();
   }
   async function buy(){
-    if(!St||noAds())return;$("noads").disabled=true;$("shopMsg").textContent="";
+    if(!St||noAds())return;$("noads").disabled=true;$("shopMsg").textContent="Opening the App Store…";
+    if(!price){try{const p=await St.product({id:NOADS_ID});if(p.available)price=p.price}catch(e){}}
+    if(!price){$("shopMsg").textContent="Remove Ads isn't available from the App Store yet. Please try again later.";refresh();return}
+    $("shopMsg").textContent="";
     try{const r=await St.purchase({id:NOADS_ID});if(r.owned){store.noAds=true;save();$("shopMsg").textContent="Ads removed. Thank you for supporting Embergem.";haptic.success()}
       else if(r.pending)$("shopMsg").textContent="Waiting for approval.";}
     catch(e){$("shopMsg").textContent=e&&e.message?e.message:"The purchase didn't go through."}
