@@ -181,15 +181,17 @@ function trace(d){
   return{pts,cells};
 }
 // sockets the fire has reached; "full" ignores how far the flame has grown on screen
-function litSet(full){const s=new Set();dragons.forEach((d,i)=>{const b=full?trace(d):d.beam;if(!b)return;const lim=full?1e9:d.len;
-  b.cells.forEach(([x,y,pi])=>{if(pi>lim)return;const c=grid[y][x];if(c.k===2&&(c.need<0||c.need===i))s.add(x+","+y)})});return s}
+// a green gem (need -2) lights only where gold and blue fire both pass: the two mix into green
+function litSet(full){const s=new Set(),hit=new Map();dragons.forEach((d,i)=>{const b=full?trace(d):d.beam;if(!b)return;const lim=full?1e9:d.len;
+  b.cells.forEach(([x,y,pi])=>{if(pi>lim)return;const c=grid[y][x];if(c.k!==2)return;const k=x+","+y;
+    if(c.need===-2){const h=(hit.get(k)||0)|(1<<i);hit.set(k,h);if((h&3)===3)s.add(k)}else if(c.need===-1||c.need===i)s.add(k)})});return s}
 const solved=()=>litSet(true).size===sockets;
 
 // Build a chamber backwards from its answer: each dragon's fire wanders the board, crystals are set where it turns,
 // gem sockets go on the fire after its first turn, then spare crystals and pillars fill the rest and the crystals are scrambled.
-function genChamber(n,nd,ng,colors,r){
+function genChamber(n,nd,NG,colors,r,mix=0){
   N=n;multi=nd>1;
-  for(let tries=0;tries<900;tries++){
+  for(let tries=0;tries<900;tries++){let ng=NG;
     grid=[...Array(n)].map(()=>[...Array(n)].map(()=>({k:0,paths:[],m:0,want:-1,ang:0,on:false})));dragons=[];let ok=true;
     const relax=Math.floor(tries/300);
     for(let d=0;d<nd&&ok;d++){
@@ -213,7 +215,12 @@ function genChamber(n,nd,ng,colors,r){
     const cand=new Map();
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];if(c.k)continue;c.paths.forEach(([d,len,t])=>{if(t>=1&&!cand.has(x+","+y))cand.set(x+","+y,{x,y,d,len,t})})}
     if(cand.size<ng)continue;
-    const list=[...cand.values()],pick=[];
+    // mixing gems go where gold and blue fire cross on the answer
+    const want=tries<600?mix:0,cross=[];
+    if(want){for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];if(!c.k&&c.paths.some(q=>q[0]===0)&&c.paths.some(q=>q[0]===1))cross.push({x,y})}
+      if(cross.length<want)continue;for(let i=cross.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[cross[i],cross[j]]=[cross[j],cross[i]]}
+      cross.slice(0,want).forEach(o=>{const c=grid[o.y][o.x];c.k=2;c.need=-2;c.g=2;cand.delete(o.x+","+o.y)})}
+    const list=[...cand.values()],pick=[];ng-=want;
     dragons.forEach((D,d)=>{const mine=list.filter(o=>o.d===d&&o.t===D.turns).sort((a,b)=>b.len-a.len);if(mine[0])pick.push(mine[0])});
     const rest=list.filter(o=>!pick.includes(o));for(let i=rest.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]]}
     // spread them out: skip sockets touching one already chosen while there are other options
@@ -227,7 +234,7 @@ function genChamber(n,nd,ng,colors,r){
       if(q<spare){c.k=1;c.want=-1;c.m=r()<.5?0:1}else if(q<spare+.1)c.k=3}
     // scramble the crystals the answer uses
     let wrong=0;const used=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];if(c.k===1&&c.want>=0){used.push(c);if(r()<.72){c.m=1-c.want;wrong++}}}
-    sockets=ng;
+    sockets=ng+want;
     if(wrong<2||solved()){used.forEach(c=>{if(c.m===c.want&&wrong<2){c.m=1-c.want;wrong++}});if(solved()){used[0].m=1-used[0].m;wrong++}}
     if(solved())continue;
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];c.ang=c.m}
@@ -248,13 +255,13 @@ function palette(k,r){return[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k)}
 function newGame(){
   over=false;aiming=false;particles=[];texts=[];$("veil").hidden=true;
   let r;
-  if(mode==="daily"){const d=dailyNo();r=seeded(d*2654435761+11);genChamber(7,2,6,[],r)}
-  else if(mode==="endless"){r=Math.random;const n=r()<.5?6:7,nd=r()<.5?1:2;genChamber(n,nd,n-1,palette(4,r),r)}
-  else{r=seeded(lvl*7919+5);const n=sizeFor(lvl);genChamber(n,dragonsFor(lvl),n-1+(lvl>13?1:0),palette(lvl<3?2:4,r),r)}
+  if(mode==="daily"){const d=dailyNo();r=seeded(d*2654435761+11);genChamber(7,2,6,[],r,1)}
+  else if(mode==="endless"){r=Math.random;const n=r()<.5?6:7,nd=r()<.5?1:2;genChamber(n,nd,n-1,palette(4,r),r,nd>1?1:0)}
+  else{r=seeded(lvl*7919+5);const n=sizeFor(lvl);genChamber(n,dragonsFor(lvl),n-1+(lvl>13?1:0),palette(lvl<3?2:4,r),r,lvl<8?0:lvl<16?1:2)}
   layout();dragons.forEach(d=>{d.beam=null;d.len=0});renderGoals();updStat();
   $("foot").textContent=mode==="daily"?(store.daily&&store.daily[todayKey()]?"You already lit today's chamber. Replays don't change your result.":"Today's chamber is the same for everyone. Fewest turns wins."):
     mode==="endless"?"Endless chambers. No turn count, just the fire.":lvl===1&&!store.tutored?"Tap a crystal to turn it. Bend the fire through every gem.":
-    multi?"Each gem glows only in fire of its own colour.":"Turn the crystals so the dragon's fire reaches every gem.";
+    grid.flat().some(c=>c.need===-2)?"Green gems need gold and blue fire crossing on them.":multi?"Each gem glows only in fire of its own colour.":"Turn the crystals so the dragon's fire reaches every gem.";
   boostUI();
 }
 function updStat(){
@@ -333,7 +340,10 @@ function drawPillar(x,y){const cx=bx+(x+.5)*cell,cy=by+(y+.5)*cell,R=cell*.4;
   ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3;ctx.lineTo(cx+Math.cos(a)*R*.55,cy+Math.sin(a)*R*.55)}ctx.closePath();ctx.strokeStyle="rgba(255,255,255,.06)";ctx.stroke()}
 function drawSocket(c,x,y,now){const cx=bx+(x+.5)*cell,cy=by+(y+.5)*cell;
   ctx.beginPath();ctx.arc(cx,cy,cell*.36,0,Math.PI*2);ctx.fillStyle="#0b0a0f";ctx.fill();ctx.lineWidth=cell*.06;ctx.strokeStyle=c.on?"#8a7148":"#2e2934";ctx.stroke();
+  // a green gem's ring is half gold, half blue: it wants both fires
+  if(c.need===-2)[[GEMS[FIRE[0]].c[1],Math.PI/2],[GEMS[FIRE[1]].c[1],-Math.PI/2]].forEach(([col,a])=>{ctx.beginPath();ctx.arc(cx,cy,cell*.36,a,a+Math.PI);ctx.strokeStyle=col;ctx.globalAlpha=c.on?.9:.55;ctx.stroke();ctx.globalAlpha=1});
   const flash=c.on&&c.at&&now-c.at<600?1-(now-c.at)/600:0,s=cell*.48;
+  if(c.need===-2&&c.on){const R=cell*(.7+.08*Math.sin(now*.005)),g=ctx.createRadialGradient(cx,cy,0,cx,cy,R);g.addColorStop(0,GEMS[2].c[1]);g.addColorStop(1,"rgba(0,0,0,0)");ctx.save();ctx.globalCompositeOperation="lighter";ctx.globalAlpha=.55+.4*flash;ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fill();ctx.restore()}
   gem(cx-s/2,cy-s/2,s,c.g,c.on?1:.38,c.on?cell*(.35+.1*Math.sin(now*.004+x+y))+cell*.4*flash:0)}
 function drawCrystal(c,x,y,now){const cx=bx+(x+.5)*cell,cy=by+(y+.5)*cell,L=cell*.43,w=cell*.11;
   c.ang+=(c.m-c.ang)*(reduced?1:.25);if(Math.abs(c.m-c.ang)<.003)c.ang=c.m;
