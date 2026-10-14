@@ -1,0 +1,626 @@
+<title>Dragonfire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Marcellus+SC&display=swap">
+<style>
+/* Layout: one dark screen. Gem goals above, the crystal chamber with its dragons as the hero, boosts below. */
+:root{
+  --void:#07080d; --slate:#121420; --well:#191b28; --rim:#2a2c3a;
+  --gold:#c8a76a; --gold-hi:#f1dcae; --mist:#8b8496; --bone:#ece4d4;
+  --display:"Marcellus SC","Cinzel",Georgia,serif;
+  --body:"Cormorant Garamond",Garamond,Georgia,serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--void);color:var(--bone);font-family:var(--body);overflow:hidden;
+  background-image:radial-gradient(ellipse at 50% 40%,#1a1a2a 0%,var(--void) 68%)}
+[hidden]{display:none!important}
+.app{height:100%;padding-top:max(12px,env(safe-area-inset-top))!important;padding-bottom:max(12px,env(safe-area-inset-bottom))!important;display:flex;flex-direction:column;align-items:center;padding-inline:16px;padding-block:12px;box-sizing:border-box;gap:8px}
+header{width:100%;max-width:460px;display:grid;grid-template-columns:1fr auto 1fr;align-items:end}
+.brand{font-family:var(--display);color:var(--gold);letter-spacing:.08em;font-size:11px;align-self:center}
+.chamber{text-align:center;font-family:var(--display);font-size:clamp(21px,6.2vw,30px);padding-inline:6px;line-height:1;color:var(--bone)}
+.goals{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;min-height:26px}
+.goal{display:flex;align-items:center;gap:6px;font-size:19px;font-variant-numeric:tabular-nums;color:var(--bone);transition:opacity .4s}
+.goal i{width:18px;height:18px;border-radius:5px;display:block;box-shadow:inset 0 0 0 1px rgba(241,220,174,.3)}
+.goal small{color:var(--mist);font-size:15px}
+.goal.done{opacity:.45}
+.goal.done b::after{content:" ✓";color:var(--gold)}
+.goal.bump b{animation:gb .4s}
+@keyframes gb{40%{color:var(--gold-hi);text-shadow:0 0 10px var(--gold)}}
+.stars{font-size:34px;letter-spacing:.2em;color:var(--gold)}
+.stars i{font-style:normal;opacity:.22}
+.stars i.on{opacity:1}
+.best{justify-self:end;text-align:right;color:var(--mist);font-size:15px;font-variant-numeric:tabular-nums;line-height:1.1}
+.best b{display:block;color:var(--gold);font-weight:600;font-size:18px}
+.stage{flex:1;min-height:0;width:100%;display:flex;justify-content:center;align-items:center}
+canvas{touch-action:none;display:block;max-width:100%}
+.foot{color:var(--mist);font-style:italic;font-size:16px;min-height:1.3em;text-align:center}
+button{font-family:var(--display);font-size:15px;letter-spacing:.12em;color:var(--void);background:var(--gold);border:0;border-radius:999px;padding:10px 22px;cursor:pointer}
+button.ghost{background:transparent;color:var(--bone);border:1px solid var(--rim)}
+button:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+.veil{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding-inline:16px;background:color-mix(in srgb,var(--void) 92%,transparent);animation:fade .8s ease both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.card{text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;max-width:360px}
+.card h2{font-family:var(--display);font-weight:400;color:var(--gold);font-size:28px;margin:0;letter-spacing:.06em}
+.card .big{font-family:var(--display);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+.card p{margin:0;color:var(--mist);font-size:17px}
+.card p.gift{color:var(--gold-hi);font-style:italic}
+.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.row button.ghost{padding:10px 16px}
+button.mode{display:flex;flex-direction:column;gap:2px;align-items:center;padding:12px 16px;border-radius:16px;background:rgba(241,220,174,.06);border:1px solid var(--rim);color:var(--bone);font-family:var(--display);font-size:20px;letter-spacing:.06em}
+button.mode small{font-family:var(--body);font-style:italic;font-size:14px;color:var(--mist);letter-spacing:0}
+.card p.age{font-style:italic;font-size:15px}
+.skins{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.skin{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border-radius:12px;background:none;border:1px solid var(--rim);color:var(--bone);font-family:var(--body);font-size:13px;min-width:62px}
+.skin.on{border-color:var(--gold);box-shadow:0 0 10px rgba(200,167,106,.45)}
+.skin .sw{display:flex;gap:2px}.skin .sw i{width:9px;height:14px;border-radius:2px;display:block}
+.skin small{color:var(--gold);font-size:12px}
+.boosts{display:flex;gap:8px;justify-content:center}
+.boost{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:62px;padding:6px 8px;border-radius:14px;background:rgba(241,220,174,.06);border:1px solid var(--rim);color:var(--bone);font-family:var(--body);font-size:14px;letter-spacing:.02em}
+.boost span{font-size:18px;line-height:1;color:var(--gold)}
+.boost small{color:var(--gold);font-size:12px}.boost small::before{content:"✦ "}
+.boost.wallet b{color:var(--gold-hi);font-size:17px;font-weight:600}.boost.wallet small::before{content:""}
+.boost.on{border-color:var(--gold);box-shadow:0 0 12px rgba(200,167,106,.5)}
+.boost:disabled{opacity:.35}
+.col{display:flex;flex-direction:column;gap:12px;align-items:stretch;min-width:240px}
+.card.col h2{margin-bottom:6px}
+button.link{background:none;border:0;color:var(--gold);font-family:var(--body);font-style:italic;font-size:17px;letter-spacing:.02em;padding:6px 10px}
+button:disabled{opacity:.45}
+.nudge{animation:glow 2.4s ease-in-out infinite;margin-bottom:-4px}@keyframes glow{50%{text-shadow:0 0 12px var(--gold);color:var(--gold-hi)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<div class="app">
+  <header>
+    <div class="brand">DRAGONFIRE</div>
+    <div class="chamber" id="chamber">Chamber I</div>
+    <div class="best"><span id="statLbl">Turns</span><b id="moves">0</b></div>
+  </header>
+  <div class="goals" id="goals" aria-live="polite"></div>
+  <div class="stage" id="stage"><canvas id="cv" aria-label="Chamber board. Tap a crystal to turn it."></canvas></div>
+  <div class="foot" id="foot">Turn the crystals so the dragon's fire reaches every gem.</div>
+  <button class="link nudge" id="dailyNudge" type="button" hidden></button>
+  <div class="boosts" id="boosts">
+    <button class="boost" id="bHint" type="button" aria-label="Hint: turn one crystal the right way, 3 embers"><span>✧</span>Hint<small>3</small></button>
+    <button class="boost" id="bClaw" type="button" aria-label="Dragon claw: set the crystals in the 3 by 3 around a tile, 6 embers"><span>✶</span>Claw<small>6</small></button>
+    <button class="boost wallet" id="bEmbers" type="button" aria-label="Your embers"><span>✦</span><b id="embers">0</b><small id="earn" hidden>+10</small></button>
+  </div>
+  <div class="row"><button class="ghost" id="settingsBtn" type="button">Settings</button><button class="ghost" id="modeBtn" type="button">Modes</button><button class="ghost" id="restart" type="button">Restart</button></div>
+</div>
+<div class="veil" id="veil" hidden></div>
+<div class="veil" id="modes" hidden><div class="card col">
+  <h2>Modes</h2>
+  <button class="mode" id="mDaily" type="button">Daily</button>
+  <button class="mode" id="mChamb" type="button">Chambers</button>
+  <button class="mode" id="mEndless" type="button">Endless</button>
+  <p class="age" id="dragonAge"></p>
+  <button class="link" id="lbBtn" type="button" hidden>Leaderboards</button>
+  <button class="ghost" id="closeModes" type="button">Close</button>
+</div></div>
+<div class="veil" id="settings" hidden><div class="card col">
+  <h2>Settings</h2>
+  <button class="ghost" id="sound" type="button">Sound on</button>
+  <button class="ghost" id="haptics" type="button">Haptics on</button>
+  <p class="age">Gem skins</p><div class="skins" id="skins"></div>
+  <div class="col" id="shop" hidden><button id="noads" type="button">Remove ads</button><button class="link" id="restore" type="button">Restore purchase</button></div>
+  <button class="link" id="privacy" type="button" hidden>Privacy choices</button>
+  <button class="ghost" id="closeSet" type="button">Done</button>
+  <p id="shopMsg"></p>
+</div></div>
+<script>
+const SIL="data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAPAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+const $=id=>document.getElementById(id),cv=$("cv"),ctx=cv.getContext("2d");
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function load(){try{return JSON.parse((localStorage.getItem("dragonfire"))||"{}")}catch(e){return{}}}
+function save(){try{localStorage.setItem("dragonfire",JSON.stringify(store))}catch(e){}}
+const store=Object.assign({best:0,sound:true,haptics:true,embers:5},load());
+
+
+// Jewel tones: [base, light, deep]
+const GEMS=[
+ {n:"garnet",c:["#8c1d3c","#e0587c","#3d0a1a"]},
+ {n:"amethyst",c:["#5a2d8c","#b083e0","#24103d"]},
+ {n:"emerald",c:["#17694f","#5fd1a4","#06291f"]},
+ {n:"sapphire",c:["#1f437f","#6c9ae6","#0a1a36"]},
+ {n:"topaz",c:["#9a6b22","#f0c56a","#3d2808"]},
+ {n:"moonstone",c:["#5d6a80","#c9d4e6","#222834"]},
+];
+// gem skins bought with embers; every skin keeps six clearly different hues
+const SKINS={
+  classic:{name:"Classic",cost:0,c:GEMS.map(g=>g.c)},
+  obsidian:{name:"Obsidian",cost:60,c:[["#3a0d18","#ff5c7a","#0a0306"],["#24113a","#c08cff","#07030d"],["#0c2a20","#4dffb8","#020a07"],["#0d1d3a","#6fb2ff","#02060d"],["#3a2a0d","#ffcf5c","#0d0902"],["#22262e","#e6eeff","#06070a"]]},
+  bloodmoon:{name:"Blood Moon",cost:80,c:[["#7a0f14","#ff4a3d","#2a0405"],["#5c1730","#e0628a","#1f060f"],["#7a3a12","#ff9a4a","#2a1205"],["#3d0d0d","#a8433a","#140303"],["#8a6a1a","#ffd36a","#2e2306"],["#4a3a40","#c9a8b0","#1a1316"]]},
+  bone:{name:"Bone",cost:80,c:[["#b8a88a","#f4ead2","#5a4e38"],["#7a6a5a","#c8b8a4","#2e261e"],["#5e6b4a","#a8b88e","#20281a"],["#5a6470","#aab4c0","#1e232a"],["#8a5a3a","#d8a07a","#3a2214"],["#3a3430","#8a8078","#141210"]]},
+  frost:{name:"Frost",cost:100,c:[["#2a6a8a","#9ae6ff","#0a2836"],["#5a4a8a","#c8b8ff","#1e1836"],["#2a7a6a","#9affe0","#0a2e28"],["#14306a","#5a8aff","#060f26"],["#8a9aa8","#ffffff","#3a444e"],["#6a3a7a","#e8a8ff","#26122e"]]}};
+function applySkin(){const sk=SKINS[store.skin]||SKINS.classic;GEMS.forEach((g,i)=>g.c=sk.c[i])}
+function renderSkins(){
+  const own=store.skins||["classic"];
+  $("skins").innerHTML=Object.entries(SKINS).map(([k,sk])=>`<button class="skin${(store.skin||"classic")===k?" on":""}" data-k="${k}" type="button"><span class="sw">${sk.c.map(c=>`<i style="background:linear-gradient(${c[1]},${c[0]} 60%,${c[2]})"></i>`).join("")}</span>${sk.name}${own.includes(k)?"":`<small>✦ ${sk.cost}</small>`}</button>`).join("");
+  $("skins").querySelectorAll(".skin").forEach(b=>b.onclick=()=>{const k=b.dataset.k,sk=SKINS[k];const own=store.skins||["classic"];
+    if(!own.includes(k)){if((store.embers||0)<sk.cost){$("shopMsg").textContent=`${sk.name} costs ${sk.cost} embers. You have ${store.embers||0}.`;return}store.embers-=sk.cost;store.skins=[...own,k];$("shopMsg").textContent=`${sk.name} gems are yours.`;haptic.success();sound.vein()}
+    store.skin=k;save();applySkin();renderSkins();renderGoals();boostUI()});
+}
+
+// ---------- haptics ----------
+// Android: navigator.vibrate. iPhone (iOS 18+): Safari has no vibrate, but toggling a native
+// <input switch> plays the system tap. WebKit only allows it inside a real tap/release, so
+// gesture handlers wrap their work in haptic.during(); taps requested elsewhere are skipped on iPhone.
+const haptic=(()=>{let live=0;const canVibe=typeof navigator.vibrate==="function";
+  // inside the App Store build, Capacitor gives us the real Taptic Engine
+  const nat=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.Haptics;
+  function native(p,kind){const n=Array.isArray(p)?p:[p];if(kind==="success"){nat.notification({type:"SUCCESS"}).catch(()=>{});return}if(n.length>1){nat.impact({style:"MEDIUM"}).catch(()=>{});setTimeout(()=>nat.impact({style:"LIGHT"}).catch(()=>{}),90);return}nat.impact({style:n[0]<=8?"LIGHT":n[0]<=16?"MEDIUM":"HEAVY"}).catch(()=>{})}
+  function ios(){try{const l=document.createElement("label");l.ariaHidden="true";l.style.display="none";const i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");l.appendChild(i);document.head.appendChild(l);l.click();document.head.removeChild(l)}catch(e){}}
+  function fire(p,kind){if(store.haptics===false)return;if(nat){native(p,kind);return}if(canVibe){try{navigator.vibrate(p)}catch(e){}return}
+    if(!live)return;const n=Array.isArray(p)?Math.ceil(p.length/2):1;ios();for(let i=1;i<Math.min(n,3);i++)setTimeout(ios,i*120)}
+  function during(fn){return function(e){live++;try{return fn.call(this,e)}finally{live--}}}
+  return{fire,during,tick:()=>fire(6),tap:()=>fire(12),thud:()=>fire(22),burst:()=>fire([16,50,16,50,30]),success:()=>fire([20,60,20,60,50],"success"),supported:()=>!!nat||canVibe||"ontouchend" in window,native:!!nat};
+})();
+// ---------- the chamber: turn crystals so the dragon's fire bends through every gem socket ----------
+const DIRS=[[0,-1],[1,0],[0,1],[-1,0]]; // N E S W as [dx,dy]
+// a crystal set "/" (m=0) or "\" (m=1) turns the fire a quarter turn
+const bend=(m,dx,dy)=>m?[dy,dx]:[-dy,-dx];
+const FIRE=[4,3,0]; // each dragon's fire takes a gem's colour: topaz gold, sapphire blue, garnet red
+let N=5,grid=[],dragons=[],moves=0,par=0,over=false,aiming=false,particles=[],texts=[],shake=0,hinted=new Map(),multi=false,sockets=0;
+let W,H,DPR,U,cell,bx,by,B;
+function layout(){
+  const st=$("stage").getBoundingClientRect();
+  W=Math.min(st.width,460,st.height);H=W;
+  DPR=window.devicePixelRatio||1;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+"px";cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  B=W*.74;bx=by=(W-B)/2;cell=B/N;U=B/8;
+}
+const inside=(x,y)=>x>=0&&y>=0&&x<N&&y<N;
+// follow one dragon's fire; points are in cell units, cells remember which point they sit on
+function trace(d){
+  let x=d.x,y=d.y,dx=d.dx,dy=d.dy;const pts=[[x+.5+dx*.5,y+.5+dy*.5]],cells=[],seen=new Set();
+  for(let i=0;i<4*N*N;i++){x+=dx;y+=dy;
+    if(!inside(x,y)){pts.push([x+.5-dx*.5,y+.5-dy*.5]);break}
+    const c=grid[y][x];if(c.k===3){pts.push([x+.5-dx*.5,y+.5-dy*.5]);break}
+    const s=x+","+y+","+dx+","+dy;if(seen.has(s))break;seen.add(s);
+    cells.push([x,y,pts.length]);pts.push([x+.5,y+.5]);
+    if(c.k===1)[dx,dy]=bend(c.m,dx,dy);
+  }
+  return{pts,cells};
+}
+// sockets the fire has reached; "full" ignores how far the flame has grown on screen
+function litSet(full){const s=new Set();dragons.forEach((d,i)=>{const b=full?trace(d):d.beam;if(!b)return;const lim=full?1e9:d.len;
+  b.cells.forEach(([x,y,pi])=>{if(pi>lim)return;const c=grid[y][x];if(c.k===2&&(c.need<0||c.need===i))s.add(x+","+y)})});return s}
+const solved=()=>litSet(true).size===sockets;
+
+// Build a chamber backwards from its answer: each dragon's fire wanders the board, crystals are set where it turns,
+// gem sockets go on the fire after its first turn, then spare crystals and pillars fill the rest and the crystals are scrambled.
+function genChamber(n,nd,ng,colors,r){
+  N=n;multi=nd>1;
+  for(let tries=0;tries<900;tries++){
+    grid=[...Array(n)].map(()=>[...Array(n)].map(()=>({k:0,paths:[],m:0,want:-1,ang:0,on:false})));dragons=[];let ok=true;
+    const relax=Math.floor(tries/300);
+    for(let d=0;d<nd&&ok;d++){
+      const side=d===0?3:Math.floor(r()*4),p=Math.floor(r()*n);
+      if(dragons.some(o=>o.side===side&&Math.abs(o.p-p)<2)){ok=false;break}
+      const[dx,dy]=DIRS[(side+2)%4],x=side===1?n:side===3?-1:p,y=side===0?-1:side===2?n:p;
+      const D={x,y,dx,dy,side,p,cr:[],beam:null,len:0};let cx=x,cy=y,ex=dx,ey=dy,turns=0,since=0,len=0;const seen=new Set();
+      const minT=Math.max(1,(nd===1?(n<=5?3:n-2):Math.max(2,n-4))-relax);
+      for(let i=0;i<n*n*2;i++){cx+=ex;cy+=ey;if(!inside(cx,cy))break;
+        const c=grid[cy][cx],s=cx+","+cy+","+ex+","+ey;if(seen.has(s)){ok=false;break}seen.add(s);len++;
+        if(c.k===1){[ex,ey]=bend(c.want,ex,ey);D.cr.push([cx,cy]);since=0;turns++;continue}
+        if(!c.paths.length&&since>=1&&r()<.38){const m=r()<.5?0:1,[fx,fy]=bend(m,ex,ey);
+          if(inside(cx+fx,cy+fy)){c.k=1;c.want=c.m=m;[ex,ey]=[fx,fy];D.cr.push([cx,cy]);turns++;since=0;continue}}
+        c.paths.push([d,len,turns]);since++;
+      }
+      if(!ok||turns<minT||len<n+1){ok=false;break}
+      D.turns=turns;dragons.push(D);
+    }
+    if(!ok)continue;
+    // gem sockets: only on fire that has already turned, always including the end of each dragon's path
+    const cand=new Map();
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];if(c.k)continue;c.paths.forEach(([d,len,t])=>{if(t>=1&&!cand.has(x+","+y))cand.set(x+","+y,{x,y,d,len,t})})}
+    if(cand.size<ng)continue;
+    const list=[...cand.values()],pick=[];
+    dragons.forEach((D,d)=>{const mine=list.filter(o=>o.d===d&&o.t===D.turns).sort((a,b)=>b.len-a.len);if(mine[0])pick.push(mine[0])});
+    const rest=list.filter(o=>!pick.includes(o));for(let i=rest.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]]}
+    // spread them out: skip sockets touching one already chosen while there are other options
+    for(const o of rest){if(pick.length>=ng)break;if(pick.some(q=>Math.abs(q.x-o.x)+Math.abs(q.y-o.y)<2)&&rest.length-pick.length>ng)continue;pick.push(o)}
+    for(const o of rest){if(pick.length>=ng)break;if(!pick.includes(o))pick.push(o)}
+    if(pick.length<ng)continue;
+    pick.slice(0,ng).forEach(o=>{const c=grid[o.y][o.x];c.k=2;c.need=multi?o.d:-1;c.g=multi?FIRE[o.d]:colors[Math.floor(r()*colors.length)]});
+    // spare crystals and pillars where the fire never needs to go
+    const spare=n<=5?.16:.22;
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];if(c.k||c.paths.length)continue;const q=r();
+      if(q<spare){c.k=1;c.want=-1;c.m=r()<.5?0:1}else if(q<spare+.1)c.k=3}
+    // scramble the crystals the answer uses
+    let wrong=0;const used=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];if(c.k===1&&c.want>=0){used.push(c);if(r()<.72){c.m=1-c.want;wrong++}}}
+    sockets=ng;
+    if(wrong<2||solved()){used.forEach(c=>{if(c.m===c.want&&wrong<2){c.m=1-c.want;wrong++}});if(solved()){used[0].m=1-used[0].m;wrong++}}
+    if(solved())continue;
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++){const c=grid[y][x];c.ang=c.m}
+    par=wrong+1;moves=0;hinted.clear();return;
+  }
+}
+
+// ---------- chambers, the daily and endless ----------
+let lvl=store.level||1;
+const roman=n=>{const v=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];let r="";for(const[a,b]of v)while(n>=a){r+=b;n-=a}return r};
+const todayKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const dailyNo=()=>Math.floor((Date.parse(todayKey()+"T12:00:00")-Date.parse("2026-10-14T12:00:00"))/864e5)+1;
+const seeded=seed=>{let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}};
+let mode=['endless','daily'].includes(store.mode)?store.mode:'chambers';
+const sizeFor=l=>l<=2?5:l<=6?6:l<=13?7:8;
+const dragonsFor=l=>l<=5?1:l<=13?2:3;
+function palette(k,r){return[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k)}
+function newGame(){
+  over=false;aiming=false;particles=[];texts=[];$("veil").hidden=true;
+  let r;
+  if(mode==="daily"){const d=dailyNo();r=seeded(d*2654435761+11);genChamber(7,2,6,[],r)}
+  else if(mode==="endless"){r=Math.random;const n=r()<.5?6:7,nd=r()<.5?1:2;genChamber(n,nd,n-1,palette(4,r),r)}
+  else{r=seeded(lvl*7919+5);const n=sizeFor(lvl);genChamber(n,dragonsFor(lvl),n-1+(lvl>13?1:0),palette(lvl<3?2:4,r),r)}
+  layout();dragons.forEach(d=>{d.beam=null;d.len=0});renderGoals();updStat();
+  $("foot").textContent=mode==="daily"?(store.daily&&store.daily[todayKey()]?"You already lit today's chamber. Replays don't change your result.":"Today's chamber is the same for everyone. Fewest turns wins."):
+    mode==="endless"?"Endless chambers. No turn count, just the fire.":lvl===1&&!store.tutored?"Tap a crystal to turn it. Bend the fire through every gem.":
+    multi?"Each gem glows only in fire of its own colour.":"Turn the crystals so the dragon's fire reaches every gem.";
+  boostUI();
+}
+function updStat(){
+  if(mode==="endless"){$("statLbl").textContent="Lit";$("moves").textContent=(store.chambersLit||0).toLocaleString();$("chamber").textContent="Endless"}
+  else{$("statLbl").textContent="Turns";$("moves").textContent=moves;$("chamber").textContent=mode==="daily"?`Daily #${dailyNo()}`:`Chamber ${roman(lvl)}`}
+}
+function renderGoals(){
+  const by_={};grid.flat().forEach(c=>{if(c.k!==2)return;by_[c.g]=by_[c.g]||{need:0,got:0};by_[c.g].need++;if(c.on)by_[c.g].got++});
+  $("goals").innerHTML=Object.entries(by_).map(([g,q])=>{const c=GEMS[g].c;return`<span class="goal${q.got>=q.need?" done":""}" title="${GEMS[g].n}"><i style="background:linear-gradient(135deg,${c[1]},${c[0]} 50%,${c[2]})"></i><b>${q.got}</b><small>/ ${q.need}</small></span>`}).join("");
+}
+function finish(){
+  over=true;aiming=false;contentUntil=performance.now()+4000;haptic.success();sound.done(3);
+  if(!reduced)grid.forEach((row,y)=>row.forEach((c,x)=>{if(c.k!==2)return;for(let k=0;k<7;k++)particles.push({x:bx+(x+.5)*cell,y:by+(y+.5)*cell,vx:(Math.random()-.5)*6,vy:-Math.random()*5-2,s:cell*(.06+Math.random()*.06),c:GEMS[c.g].c[1],life:60+Math.random()*40,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}));
+  hoard(N*N);
+  if(!store.tutored){store.tutored=true}
+  setTimeout(()=>monet.refresh(),10);
+  setTimeout(()=>showDone(),1400);
+}
+function showDone(){
+  const v=$("veil");v.hidden=false;
+  if(mode==="endless"){
+    store.chambersLit=(store.chambersLit||0)+1;const gift=store.chambersLit%3===0?3:0;store.embers=(store.embers||0)+gift;store.best=Math.max(store.best||0,store.chambersLit);save();gc.submit(LB.endless,store.chambersLit);updStat();
+    v.innerHTML=`<div class="card"><h2>The chamber blazes</h2><div class="big">${store.chambersLit.toLocaleString()}</div><p>chambers lit in Endless</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}<div class="row"><button class="ghost" id="share" type="button">Share</button><button id="nextc" type="button">Next chamber</button></div></div>`;
+    $("share").onclick=()=>shareText(`I've lit ${store.chambersLit} chambers in Dragonfire 🐉🔥 Can you light more?`);
+    $("nextc").onclick=()=>monet.between(newGame);return}
+  const stars=moves<=par?3:moves<=Math.ceil(par*1.6)+1?2:1;let gift=2+stars*2;
+  if(mode==="daily"){store.daily=store.daily||{};const k=todayKey();if(!store.daily[k]){store.daily[k]={moves,stars};gift=6+stars*3;gc.submit(LB.daily,moves)}else gift=0}
+  else{store.stars=store.stars||{};store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=Math.max(store.level||1,lvl+1);gc.submit(LB.chambers,lvl)}
+  store.embers=(store.embers||0)+gift;save();boostUI();
+  v.innerHTML=`<div class="card"><h2>${mode==="daily"?`Daily #${dailyNo()} ablaze`:`Chamber ${roman(lvl)} ablaze`}</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
+    <p>${moves} turns${stars<3?` · ${par} or fewer for three stars`:" · the dragon rumbles, pleased"}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
+    ${mode==="daily"?`<div class="row"><button class="ghost" id="shareD" type="button">Share</button><button id="nextc" type="button">Back to chambers</button></div>`:`<div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div>`}</div>`;
+  if(mode==="daily"){const r=store.daily[todayKey()];$("shareD").onclick=()=>shareText(`Dragonfire Daily #${dailyNo()} 🐉\n${"🔥".repeat(r.stars)}${"🖤".repeat(3-r.stars)}  ${r.moves} turns`);$("nextc").onclick=()=>monet.between(()=>setMode("chambers"));return}
+  $("nextc").onclick=()=>monet.between(()=>{lvl++;newGame()});$("again").onclick=newGame;
+}
+function shareText(text){
+  const S=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Share;
+  if(S&&S.share)S.share({text,dialogTitle:"Share"}).catch(()=>{});
+  else if(navigator.share)navigator.share({text}).catch(()=>{});
+  else{try{navigator.clipboard.writeText(text);$("foot").textContent="Copied. Paste it anywhere."}catch(e){}}
+}
+
+// ---------- turning crystals ----------
+function turn(x,y){const c=grid[y][x];if(c.k!==1){if(c.k)sound.thunk();return}
+  c.m^=1;if(mode!=="endless")moves++;sound.prism();haptic.tap();updStat();boostUI()}
+// the crystal the answer needs next, following each dragon's fire in order
+function nextWrong(){for(const d of dragons)for(const[x,y]of d.cr){const c=grid[y][x];if(c.want>=0&&c.m!==c.want)return[x,y]}return null}
+function correct(x,y){const c=grid[y][x];if(c.k!==1||c.want<0||c.m===c.want)return false;c.m=c.want;hinted.set(x+","+y,performance.now());return true}
+
+// ---------- the dragons watch their fire ----------
+function stepDragon(now){
+  const lit=grid.flat().filter(c=>c.on).length,frac=lit/(sockets||1),target=now<contentUntil?.8:.15+.45*frac;
+  eyeO+=(target-eyeO)*.04;
+  if(now>nextBreath){sound.breath(eyeO);nextBreath=now+4600}
+}
+// grow each flame along its path; a turned crystal pulls the flame back to it
+function stepFire(){
+  dragons.forEach(d=>{const t=trace(d),o=d.beam;
+    if(o){let k=0;while(k<o.pts.length&&k<t.pts.length&&o.pts[k][0]===t.pts[k][0]&&o.pts[k][1]===t.pts[k][1])k++;d.len=Math.min(d.len,Math.max(0,k-1))}
+    d.beam=t;d.len=Math.min(t.pts.length-1,d.len+(reduced?99:.3))});
+  const s=litSet(false),now=performance.now();let changed=false;
+  grid.forEach((row,y)=>row.forEach((c,x)=>{if(c.k!==2)return;const on=s.has(x+","+y);if(on!==c.on){c.on=on;changed=true;if(on){c.at=now;sound.tink(.4+.1*(x+y)/N);haptic.tick()}}}));
+  if(changed)renderGoals();
+  if(!over&&s.size===sockets&&dragons.every(d=>d.beam&&d.len>=d.beam.pts.length-1))finish();
+}
+
+// ---------- rendering ----------
+const fireCol=i=>GEMS[multi?FIRE[i]:FIRE[0]].c;
+function drawFloor(x,y){const X=bx+x*cell,Y=by+y*cell,g=ctx.createLinearGradient(X,Y,X+cell,Y+cell);
+  rr(X+cell*.04,Y+cell*.04,cell*.92,cell*.92,cell*.12);g.addColorStop(0,"#1c1a26");g.addColorStop(1,"#121019");ctx.fillStyle=g;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.5)";ctx.lineWidth=1;ctx.stroke()}
+function drawPillar(x,y){const cx=bx+(x+.5)*cell,cy=by+(y+.5)*cell,R=cell*.4;
+  ctx.save();ctx.shadowColor="rgba(0,0,0,.7)";ctx.shadowBlur=cell*.2;ctx.shadowOffsetY=cell*.06;
+  ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3;ctx.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R)}ctx.closePath();
+  const g=ctx.createLinearGradient(cx-R,cy-R,cx+R,cy+R);g.addColorStop(0,"#3a3542");g.addColorStop(1,"#17141c");ctx.fillStyle=g;ctx.fill();ctx.restore();
+  ctx.strokeStyle="rgba(200,167,106,.18)";ctx.lineWidth=1;ctx.stroke();
+  ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3;ctx.lineTo(cx+Math.cos(a)*R*.55,cy+Math.sin(a)*R*.55)}ctx.closePath();ctx.strokeStyle="rgba(255,255,255,.06)";ctx.stroke()}
+function drawSocket(c,x,y,now){const cx=bx+(x+.5)*cell,cy=by+(y+.5)*cell;
+  ctx.beginPath();ctx.arc(cx,cy,cell*.36,0,Math.PI*2);ctx.fillStyle="#0b0a0f";ctx.fill();ctx.lineWidth=cell*.06;ctx.strokeStyle=c.on?"#8a7148":"#2e2934";ctx.stroke();
+  const flash=c.on&&c.at&&now-c.at<600?1-(now-c.at)/600:0,s=cell*.48;
+  gem(cx-s/2,cy-s/2,s,c.g,c.on?1:.38,c.on?cell*(.35+.1*Math.sin(now*.004+x+y))+cell*.4*flash:0)}
+function drawCrystal(c,x,y,now){const cx=bx+(x+.5)*cell,cy=by+(y+.5)*cell,L=cell*.43,w=cell*.11;
+  c.ang+=(c.m-c.ang)*(reduced?1:.25);if(Math.abs(c.m-c.ang)<.003)c.ang=c.m;
+  const hl=hinted.get(x+","+y);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-Math.PI/4+c.ang*Math.PI/2);
+  // a long glass prism lying across the tile
+  ctx.beginPath();ctx.moveTo(-L,0);ctx.lineTo(-L+w,-w);ctx.lineTo(L-w,-w);ctx.lineTo(L,0);ctx.lineTo(L-w,w);ctx.lineTo(-L+w,w);ctx.closePath();
+  const g=ctx.createLinearGradient(0,-w,0,w);g.addColorStop(0,"#eef4ff");g.addColorStop(.45,"#9fb8e0");g.addColorStop(.55,"#5d6f96");g.addColorStop(1,"#c9d8f2");
+  ctx.shadowColor="rgba(160,190,255,.45)";ctx.shadowBlur=cell*.18;ctx.fillStyle=g;ctx.globalAlpha=.92;ctx.fill();ctx.globalAlpha=1;ctx.shadowBlur=0;
+  ctx.strokeStyle="rgba(255,255,255,.75)";ctx.lineWidth=1;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-L+w,0);ctx.lineTo(L-w,0);ctx.strokeStyle="rgba(255,255,255,.35)";ctx.stroke();
+  ctx.restore();
+  if(hl!==undefined&&now-hl<900){const a=1-(now-hl)/900;rr(bx+x*cell+cell*.04,by+y*cell+cell*.04,cell*.92,cell*.92,cell*.12);ctx.strokeStyle=`rgba(241,220,174,${a})`;ctx.lineWidth=3;ctx.stroke()}}
+function drawFire(now){
+  ctx.save();ctx.globalCompositeOperation="lighter";ctx.lineCap="round";ctx.lineJoin="round";
+  dragons.forEach((d,i)=>{if(!d.beam)return;const P=d.beam.pts,L=d.len,col=fireCol(i),fl=1+.08*Math.sin(now*.017+i)+.05*Math.sin(now*.041);
+    const path=()=>{ctx.beginPath();const k=Math.floor(L);for(let j=0;j<=k&&j<P.length;j++){const[a,b]=P[j];j?ctx.lineTo(bx+a*cell,by+b*cell):ctx.moveTo(bx+a*cell,by+b*cell)}
+      if(k<P.length-1){const f=L-k,[a,b]=P[k],[c2,e]=P[k+1];ctx.lineTo(bx+(a+(c2-a)*f)*cell,by+(b+(e-b)*f)*cell)}};
+    for(const[w,c,al]of[[.42,col[0],.35],[.2,col[1],.85],[.07,"#fff6e0",1]]){path();ctx.strokeStyle=c;ctx.globalAlpha=al;ctx.lineWidth=cell*w*fl;ctx.stroke()}
+    ctx.globalAlpha=1;
+    // the flame's leading tip while it grows
+    if(L<P.length-1){const k=Math.floor(L),f=L-k,[a,b]=P[k],[c2,e]=P[k+1],X=bx+(a+(c2-a)*f)*cell,Y=by+(b+(e-b)*f)*cell,gr=ctx.createRadialGradient(X,Y,0,X,Y,cell*.45);
+      gr.addColorStop(0,"#fff6e0");gr.addColorStop(.4,col[1]);gr.addColorStop(1,"rgba(0,0,0,0)");ctx.fillStyle=gr;ctx.beginPath();ctx.arc(X,Y,cell*.45,0,Math.PI*2);ctx.fill()}
+    // embers drifting off the fire
+    if(!reduced&&Math.random()<.25){const j=Math.floor(Math.random()*Math.min(P.length,L+1)),[a,b]=P[j];particles.push({x:bx+a*cell,y:by+b*cell,vx:(Math.random()-.5)*.6,vy:-.4-Math.random()*.6,s:cell*.035,c:col[1],life:40,rot:0,vr:0,float:1})}
+  });
+  ctx.restore();
+}
+function headSpot(d){const ux=d.dx,uy=d.dy,ex=bx+(d.x+.5+ux*.5)*cell,ey=by+(d.y+.5+uy*.5)*cell,c=W*.13*.78;return{x:ex-ux*c*.96,y:ey-uy*c*.96,a:Math.atan2(uy,ux),c}}
+function render(now){
+  ctx.clearRect(0,0,W,H);
+  ctx.save();if(shake>0&&!reduced){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85;if(shake<.3)shake=0}
+  stepDragon(now);if(N&&grid.length)stepFire();
+  const lit=grid.flat().filter(c=>c.on).length,fl=.05+.05*(lit/(sockets||1))+.02*Math.sin(now*.0031);
+  const cg=ctx.createRadialGradient(W/2,H/2,cell,W/2,H/2,B*.8);cg.addColorStop(0,`rgba(255,170,90,${fl})`);cg.addColorStop(1,"rgba(255,170,90,0)");ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
+  // the chamber: a carved stone floor with a thin gold rim
+  rr(bx-cell*.18,by-cell*.18,B+cell*.36,B+cell*.36,cell*.3);ctx.fillStyle="#0c0b10";ctx.fill();ctx.strokeStyle="rgba(200,167,106,.35)";ctx.lineWidth=1.5;ctx.stroke();
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)drawFloor(x,y);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const c=grid[y][x];if(c.k===2)drawSocket(c,x,y,now);else if(c.k===3)drawPillar(x,y)}
+  drawFire(now);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const c=grid[y][x];if(c.k===1)drawCrystal(c,x,y,now)}
+  const breath=1+.03*Math.sin(now*(.0016+.002*eyeO));
+  dragons.forEach(d=>drawDragonHead(headSpot(d),now,breath));
+  particles=particles.filter(q=>q.life>0);
+  particles.forEach(q=>{if(!q.float)q.vy+=0.18;q.x+=q.vx;q.y+=q.vy;q.rot+=q.vr;q.life-=1;const a=Math.min(1,q.life/30);
+    ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.rot);ctx.globalAlpha=a;ctx.fillStyle=q.c;ctx.beginPath();ctx.moveTo(0,-q.s);ctx.lineTo(q.s*.6,0);ctx.lineTo(0,q.s);ctx.lineTo(-q.s*.6,0);ctx.closePath();ctx.fill();ctx.restore()});
+  texts=texts.filter(q=>now-q.t<1600);
+  texts.forEach(q=>{if(now<q.t)return;const k=(now-q.t)/1600;ctx.save();ctx.globalAlpha=1-k*k;ctx.font=`${q.size}px "Marcellus SC", Georgia, serif`;ctx.textAlign="center";ctx.fillStyle="#f1dcae";ctx.shadowColor="#c8a76a";ctx.shadowBlur=16;ctx.fillText(q.s,q.x,q.y-k*30);ctx.restore()});
+  if(aiming){ctx.save();ctx.strokeStyle=`rgba(241,220,174,${.45+.35*Math.sin(now*.006)})`;ctx.lineWidth=3;ctx.shadowColor="#f1dcae";ctx.shadowBlur=14;rr(bx-cell*.18,by-cell*.18,B+cell*.36,B+cell*.36,cell*.3);ctx.stroke();ctx.restore()}
+  drawTutorial(now);
+  ctx.restore();
+  requestAnimationFrame(render);
+}
+// first chamber: a soft ring pulses on the crystal the fire needs turned next
+function drawTutorial(now){
+  if(store.tutored||over||mode!=="chambers"||moves>3)return;
+  const w=nextWrong();if(!w)return;const k=(now%1600)/1600,X=bx+(w[0]+.5)*cell,Y=by+(w[1]+.5)*cell;
+  ctx.save();ctx.globalAlpha=.8*(1-k);ctx.strokeStyle="#f1dcae";ctx.lineWidth=2;ctx.shadowColor="#f1dcae";ctx.shadowBlur=12;ctx.beginPath();ctx.arc(X,Y,cell*(.3+.25*k),0,Math.PI*2);ctx.stroke();ctx.restore();
+}
+
+// ---------- input ----------
+function pt(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+cv.addEventListener("pointerdown",haptic.during(e=>{
+  sound.wake();if(over)return;const p=pt(e),x=Math.floor((p.x-bx)/cell),y=Math.floor((p.y-by)/cell);
+  if(!inside(x,y))return;
+  if(aiming){if(!spend(6))return;aiming=false;let n=0;for(let j=y-1;j<=y+1;j++)for(let i=x-1;i<=x+1;i++)if(inside(i,j)&&correct(i,j))n++;
+    sound.vein();haptic.burst();shake=3;$("foot").textContent=n?"The claw sets the crystals around it.":"Those crystals were already right.";boostUI();return}
+  turn(x,y);
+}));
+
+// ---------- embers and boosts ----------
+function spend(c){if((store.embers||0)<c){$("foot").textContent=monet.canReward()?"Not enough embers. Tap ✦ to watch a short ad for 10 more.":"Not enough embers yet. Light chambers to earn more.";haptic.tick();return false}store.embers-=c;save();boostUI();return true}
+function dailyNudge(){const done=store.daily&&store.daily[todayKey()],b=$("dailyNudge");b.hidden=!!done||mode==="daily";b.textContent=`✦ Today's chamber, Daily #${dailyNo()}, is ready`}
+function boostUI(){dailyNudge();
+  $("embers").textContent=store.embers||0;
+  $("bHint").disabled=over;$("bClaw").disabled=over;
+  $("bClaw").classList.toggle("on",aiming);$("earn").hidden=!monet.canReward();
+}
+$("bHint").onclick=haptic.during(()=>{if(over)return;const w=nextWrong();if(!w||!spend(3))return;correct(w[0],w[1]);sound.vein();haptic.tap();$("foot").textContent="The dragon nudges one crystal into place.";boostUI()});
+$("bClaw").onclick=haptic.during(()=>{if(over)return;if(aiming){aiming=false;boostUI();$("foot").textContent="Claw put away.";return}if((store.embers||0)<6){spend(6);return}aiming=true;boostUI();haptic.tap();$("foot").textContent="Tap a tile. The dragon's claw sets the crystals around it."});
+$("bEmbers").onclick=()=>{if(!monet.canReward()){$("foot").textContent=`You have ${store.embers||0} embers. Earn more from chambers, Endless and the daily gift.`;return}monet.rewarded(()=>{store.embers=(store.embers||0)+10;save();boostUI();sound.vein();$("foot").textContent="+10 embers. Thank you."})};
+function setMode(m){mode=m;store.mode=m;save();$("modes").hidden=true;newGame()}
+$("modeBtn").onclick=()=>{const d=store.daily&&store.daily[todayKey()],st=dragonStage();
+  $("mDaily").innerHTML=`Daily #${dailyNo()}<small>${d?`${"★".repeat(d.stars)} in ${d.moves} turns · done`:"Same chamber for everyone today"}</small>`;
+  $("mChamb").innerHTML=`Chambers<small>Chamber ${roman(store.level||lvl)} · stars for fewer turns</small>`;
+  $("mEndless").innerHTML=`Endless<small>${(store.chambersLit||0).toLocaleString()} chambers lit · no turn count</small>`;
+  $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} embers gathered${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
+  $("lbBtn").hidden=!gc.available();$("modes").hidden=false};
+$("mDaily").onclick=()=>setMode("daily");$("dailyNudge").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
+
+// ---------- the dragons' heads at the chamber's edge ----------
+let eyeO=0,nextBreath=0,smoke=[],contentUntil=0;
+const AGES=[
+  {name:"a hatchling",at:0,deep:"#0e0c12",mid:"#221e2a",head:"#3b3446",scale:.22,glow:null},
+  {name:"a wyrmling",at:300,deep:"#120c12",mid:"#2a1f2e",head:"#463a4f",scale:.3,glow:null},
+  {name:"a young ember-wyrm",at:1000,deep:"#140a0c",mid:"#2e1a1c",head:"#52323a",scale:.38,glow:"rgba(255,120,60,.22)"},
+  {name:"a bronze drake",at:2500,deep:"#150f0a",mid:"#33261a",head:"#5c4630",scale:.5,glow:"rgba(255,150,70,.3)"},
+  {name:"an elder flame",at:5000,deep:"#16080a",mid:"#3a1418",head:"#6a2a2c",scale:.6,glow:"rgba(255,90,50,.4)"},
+  {name:"an ancient gold wyrm",at:10000,deep:"#1a140a",mid:"#4a3a1c",head:"#8a6c34",scale:.75,glow:"rgba(255,210,120,.5)"}];
+function dragonStage(){const t=store.hoardTotal||0;let i=0;AGES.forEach((a,k)=>{if(t>=a.at)i=k});const n=AGES[i+1];return{...AGES[i],i,next:n?n.at-t:0}}
+function hoard(n){
+  const before=dragonStage().i;store.hoardTotal=(store.hoardTotal||0)+n;save();const st=dragonStage();
+  if(st.i>before)setTimeout(()=>{const tn=performance.now();texts.push({s:"Your dragon grew",x:W/2,y:by+U*1.3,t:tn,size:Math.min(W*.06,26)});texts.push({s:st.name.replace(/^an? /,""),x:W/2,y:by+U*2,t:tn,size:Math.min(W*.045,19)});sound.done(3);haptic.success();
+    if(!reduced)for(let j=0;j<70;j++)particles.push({x:W/2,y:by-U*.4,vx:(Math.random()-.5)*9,vy:-Math.random()*6,s:U*(.08+Math.random()*.1),c:st.glow?"#ffb46a":"#c8a76a",life:80+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})},900);
+}
+function drawDragonHead(f,now,breath){
+  const c=f.c;
+  ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.a);ctx.scale(breath,breath);
+  const head=()=>{ctx.beginPath();ctx.moveTo(c*1.02,0);
+    ctx.bezierCurveTo(c*1.02,-c*.1,c*.9,-c*.13,c*.72,-c*.16);ctx.bezierCurveTo(c*.5,-c*.2,c*.36,-c*.34,c*.18,-c*.38);ctx.lineTo(c*.08,-c*.48);ctx.lineTo(c*.02,-c*.36);
+    ctx.bezierCurveTo(-c*.12,-c*.34,-c*.22,-c*.3,-c*.3,-c*.24);ctx.lineTo(-c*.3,c*.24);
+    ctx.bezierCurveTo(-c*.22,c*.3,-c*.12,c*.34,c*.02,c*.36);ctx.lineTo(c*.08,c*.48);ctx.lineTo(c*.18,c*.38);ctx.bezierCurveTo(c*.36,c*.34,c*.5,c*.2,c*.72,c*.16);ctx.bezierCurveTo(c*.9,c*.13,c*.92,c*.1,c*1.02,0);ctx.closePath()};
+  // horns sweeping back
+  [-1,1].forEach(k=>{ctx.beginPath();ctx.moveTo(-c*.02,k*c*.22);ctx.quadraticCurveTo(-c*.3,k*c*.5,-c*.5,k*c*.78);ctx.quadraticCurveTo(-c*.3,k*c*.36,-c*.2,k*c*.08);ctx.closePath();
+    const hg=ctx.createLinearGradient(0,0,-c*.5,k*c*.78);hg.addColorStop(0,"#3a3330");hg.addColorStop(1,"#c9b48a");ctx.fillStyle=hg;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.6)";ctx.lineWidth=1;ctx.stroke()});
+  ctx.fillStyle="rgba(0,0,0,.55)";ctx.save();ctx.translate(-c*.07,c*.05);head();ctx.fill();ctx.restore();
+  const g=ctx.createRadialGradient(c*.3,0,c*.05,c*.3,0,c*.7);const D=dragonStage();g.addColorStop(0,D.head);g.addColorStop(.6,D.mid);g.addColorStop(1,"#0d0b10");head();ctx.fillStyle=g;ctx.fill();ctx.strokeStyle="rgba(0,0,0,.8)";ctx.lineWidth=1.2;ctx.stroke();
+  ctx.save();head();ctx.clip();ctx.strokeStyle="rgba(200,167,106,.16)";ctx.lineWidth=Math.max(.6,c*.012);
+  for(let x=-.25;x<.95;x+=.09)for(let y=-.32;y<=.32;y+=.09){ctx.beginPath();ctx.arc(c*x,c*y,c*.045,Math.PI*.6,Math.PI*1.4);ctx.stroke()}
+  ctx.strokeStyle="rgba(200,167,106,.35)";ctx.lineWidth=c*.02;ctx.beginPath();ctx.moveTo(c*.95,0);ctx.lineTo(-c*.25,0);ctx.stroke();ctx.restore();
+  // nostrils
+  ctx.fillStyle="#000";[-1,1].forEach(k=>{ctx.beginPath();ctx.ellipse(c*.9,k*c*.075,c*.05,c*.018,k*.4,0,Math.PI*2);ctx.fill()});
+  // eyes: lids open as the hoard fills
+  const o=eyeO;
+  [-1,1].forEach(k=>{const ex=c*.36,ey=k*c*.25;
+    ctx.save();ctx.translate(ex,ey);ctx.rotate(k*.25);
+    const ih=c*(.012+.075*o);
+    ctx.beginPath();ctx.moveTo(-c*.13,0);ctx.quadraticCurveTo(0,-ih*1.6,c*.13,0);ctx.quadraticCurveTo(0,ih*1.6,-c*.13,0);ctx.closePath();
+    const col=o<.6?["#ffd76a","#c26a12"]:["#ff9a4a","#a3121e"];const eg=ctx.createRadialGradient(0,0,0,0,0,c*.13);eg.addColorStop(0,col[0]);eg.addColorStop(1,col[1]);
+    ctx.fillStyle=eg;ctx.shadowColor=col[0];ctx.shadowBlur=c*(.1+.6*o);ctx.fill();ctx.shadowBlur=0;
+    if(o>.08){ctx.beginPath();ctx.ellipse(0,0,c*.012+c*.01*(1-o),ih*1.1,0,0,Math.PI*2);ctx.fillStyle="#050304";ctx.fill()}
+    ctx.strokeStyle="#000";ctx.lineWidth=Math.max(1,c*.02);ctx.beginPath();ctx.moveTo(-c*.13,0);ctx.quadraticCurveTo(0,-ih*1.6,c*.13,0);ctx.quadraticCurveTo(0,ih*1.6,-c*.13,0);ctx.stroke();
+    // brow ridge with spikes
+    ctx.beginPath();ctx.moveTo(c*.16,-k*0);ctx.quadraticCurveTo(0,-k*c*.13-c*.0,-c*.18,-k*c*.04);ctx.lineWidth=c*.045;ctx.strokeStyle="#0d0b10";ctx.stroke();
+    ctx.restore()});
+  ctx.restore();
+  // smoke from the nostrils when it stirs
+  if(eyeO>.45&&!reduced&&Math.random()<.08*eyeO){const nx=f.x+Math.cos(f.a)*c*.9,ny=f.y+Math.sin(f.a)*c*.9;for(const k of[-1,1])smoke.push({x:nx+k*c*.08,y:ny,vx:k*.15+(Math.random()-.5)*.2,vy:-.35-Math.random()*.3,r:c*.08,life:70})}
+  smoke=smoke.filter(s=>s.life>0);smoke.forEach(s=>{s.x+=s.vx;s.y+=s.vy;s.r+=c*.006;s.life--;ctx.fillStyle=`rgba(140,130,150,${.09*s.life/70})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()});
+}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function gem(x,y,s,g,alpha=1,glow=0){
+  const [b,l,d]=GEMS[g].c,i=s*0.06,w=s-2*i,r=s*0.16;
+  ctx.save();ctx.globalAlpha=alpha;
+  if(glow){ctx.shadowColor=l;ctx.shadowBlur=glow}
+  const gr=ctx.createLinearGradient(x,y,x+s,y+s);gr.addColorStop(0,l);gr.addColorStop(.45,b);gr.addColorStop(1,d);
+  rr(x+i,y+i,w,w,r);ctx.fillStyle=gr;ctx.fill();ctx.shadowBlur=0;
+  // table facet
+  const f=s*0.24;
+  ctx.beginPath();ctx.moveTo(x+i+f,y+i+f);ctx.lineTo(x+s-i-f,y+i+f);ctx.lineTo(x+s-i-f,y+s-i-f);ctx.lineTo(x+i+f,y+s-i-f);ctx.closePath();
+  const tg=ctx.createLinearGradient(x,y+i+f,x,y+s-i-f);tg.addColorStop(0,"rgba(255,255,255,.22)");tg.addColorStop(1,"rgba(255,255,255,.02)");ctx.fillStyle=tg;ctx.fill();
+  // crown facets
+  ctx.strokeStyle="rgba(255,255,255,.14)";ctx.lineWidth=Math.max(.6,s*0.02);
+  ctx.beginPath();ctx.moveTo(x+i+r*.5,y+i+r*.5);ctx.lineTo(x+i+f,y+i+f);ctx.moveTo(x+s-i-r*.5,y+i+r*.5);ctx.lineTo(x+s-i-f,y+i+f);
+  ctx.moveTo(x+i+r*.5,y+s-i-r*.5);ctx.lineTo(x+i+f,y+s-i-f);ctx.moveTo(x+s-i-r*.5,y+s-i-r*.5);ctx.lineTo(x+s-i-f,y+s-i-f);ctx.stroke();
+  // glint
+  ctx.fillStyle="rgba(255,255,255,.55)";ctx.beginPath();ctx.ellipse(x+i+f*.95,y+i+f*.7,s*0.09,s*0.035,-0.6,0,Math.PI*2);ctx.fill();
+  // gold rim
+  rr(x+i,y+i,w,w,r);ctx.strokeStyle="rgba(241,220,174,.28)";ctx.lineWidth=Math.max(.7,s*0.025);ctx.stroke();
+  ctx.restore();
+}
+// ---------- daily gift: a small present each day; a missed day just lets the streak sleep ----------
+function dailyGift(){
+  const day=d=>new Date(d).toISOString().slice(0,10),today=day(Date.now());if(store.lastGift===today)return;
+  const streak=Math.min(7,(store.giftStreak||0)+1),n=4+streak;store.giftStreak=streak;store.lastGift=today;store.embers=(store.embers||0)+n;save();boostUI();
+  if(!store.tutored)return;
+  const v=$("veil");v.hidden=false;
+  v.innerHTML=`<div class="card"><h2>A gift from the dragon</h2><div class="big">+${n} ✦</div><p>Day ${streak} of 7. Come back tomorrow for a bigger one.<br>Missed days never break it.</p><button id="take" type="button">Take it</button></div>`;
+  $("take").onclick=()=>{v.hidden=true;sound.vein();haptic.success()};
+}
+$("closeModes").onclick=()=>{$("modes").hidden=true};$("lbBtn").onclick=()=>gc.show();
+$("restart").onclick=newGame;
+$("settingsBtn").onclick=()=>{$("shopMsg").textContent="";renderSkins();monet.refresh();$("settings").hidden=false};
+$("closeSet").onclick=()=>{$("settings").hidden=true};
+$("noads").onclick=()=>monet.buy();$("restore").onclick=()=>monet.restore();$("privacy").onclick=()=>monet.privacy();
+$("sound").onclick=()=>{store.sound=!store.sound;save();monet.mute(!store.sound);$("sound").textContent=store.sound?"Sound on":"Sound off";if(store.sound){sound.unlock();sound.test();setTimeout(()=>{$("foot").textContent=`Sound check: ${sound.state()}. You should hear a soft chime.`},350)}};
+$("sound").textContent=store.sound?"Sound on":"Sound off";
+$("haptics").onclick=haptic.during(()=>{store.haptics=!store.haptics;save();$("haptics").textContent=store.haptics?"Haptics on":"Haptics off";if(store.haptics){haptic.burst();$("foot").textContent=haptic.native?"You should feel a few taps.":"You should feel a few taps. On iPhone this needs iOS 18 or newer."}});
+$("haptics").textContent=store.haptics?"Haptics on":"Haptics off";
+
+// ---------- ads and the Remove Ads purchase (App Store build only) ----------
+// Calm by design: no ads during play. An interstitial can appear between chambers (from
+// Chamber III, at most every other chamber); "Fresh pieces" is an optional rewarded ad.
+// Buying Remove Ads drops the interstitials and makes Fresh pieces free (once per chamber).
+// Google's public test units until Dragonfire has its own AdMob app; put the real unit IDs here before release
+const ADS={
+  interstitial:"ca-app-pub-3940256099942544/1033173712",
+  rewarded:"ca-app-pub-3940256099942544/5224354917"};
+const NOADS_ID="com.asylummke.dragonfire.removeads";
+const monet=(()=>{
+  const C=window.Capacitor,native=!!(C&&C.isNativePlatform&&C.isNativePlatform());
+  const Ad=native?C.Plugins.AdMob:null,St=native&&C.getPlatform&&C.getPlatform()==="ios"?C.Plugins.Store:null,testing=ADS.interstitial.startsWith("ca-app-pub-3940256099942544");
+  let started=false,interReady=false,rewardReady=false,price=null,privacyNeeded=false,sinceAd=0,busy=false;
+  const noAds=()=>!!store.noAds;
+  function loadInter(){if(!started||noAds())return;interReady=false;Ad.prepareInterstitial({adId:ADS.interstitial,isTesting:testing}).then(()=>{interReady=true}).catch(()=>setTimeout(loadInter,60000))}
+  function loadReward(){if(!started)return;rewardReady=false;Ad.prepareRewardVideoAd({adId:ADS.rewarded,isTesting:testing}).then(()=>{rewardReady=true;refresh()}).catch(()=>setTimeout(loadReward,60000))}
+  async function start(){
+    if(!native)return;
+    try{const o=await St.owned({id:NOADS_ID});if(o.owned!==!!store.noAds){store.noAds=o.owned;save()}}catch(e){}
+    try{St.addListener("entitlement",e=>{if(e.id===NOADS_ID){store.noAds=e.owned;save();refresh()}})}catch(e){}
+    try{const p=await St.product({id:NOADS_ID});if(p.available)price=p.price}catch(e){}
+    try{const info=await Ad.requestConsentInfo();if(info.isConsentFormAvailable&&info.status==="REQUIRED")await Ad.showConsentForm();
+      privacyNeeded=info.privacyOptionsRequirementStatus==="REQUIRED";if(info.canRequestAds===false){refresh();return}}catch(e){}
+    try{await Ad.initialize({initializeForTesting:testing});started=true;Ad.setApplicationMuted({muted:!store.sound}).catch(()=>{});loadInter();loadReward()}catch(e){}
+    refresh();
+  }
+  function refresh(){
+    boostUI();
+    $("shop").hidden=!native||!St;$("privacy").hidden=!privacyNeeded;
+    $("noads").disabled=noAds();$("noads").textContent=noAds()?"Ads removed. Thank you!":price?`Remove ads · ${price}`:"Remove ads";
+  }
+  async function between(next){
+    sinceAd++;
+    if(!started||noAds()||!interReady||(mode==="chambers"&&lvl<2)||sinceAd<(mode==="endless"?3:2))return next();
+    try{const t=await Ad.trackingAuthorizationStatus();if(t.status==="notDetermined")await Ad.requestTrackingAuthorization()}catch(e){}
+    let done=false;const go=()=>{if(done)return;done=true;sinceAd=0;loadInter();next()};
+    let h;try{h=await Ad.addListener("interstitialAdDismissed",()=>{h&&h.remove();go()})}catch(e){}
+    Ad.showInterstitial().catch(()=>{h&&h.remove();go()});
+  }
+  // noAds buyers get the reward straight away, no ad
+  async function rewarded(reward){
+    if(busy)return;if(noAds()){const d=new Date().toISOString().slice(0,10);if(store.freeDay!==d||(store.freeCount||0)<3){if(store.freeDay!==d){store.freeDay=d;store.freeCount=0}store.freeCount++;save();reward()}else $("foot").textContent="That's today's three free refills. More tomorrow.";return}
+    if(!rewardReady)return;busy=true;let got=false;
+    let h;try{h=await Ad.addListener("onRewardedVideoAdReward",()=>{got=true})}catch(e){}
+    try{await Ad.showRewardVideoAd();}catch(e){}
+    h&&h.remove();busy=false;loadReward();if(got)reward();refresh();
+  }
+  async function buy(){
+    if(!St||noAds())return;$("noads").disabled=true;$("shopMsg").textContent="Opening the App Store…";
+    if(!price){try{const p=await St.product({id:NOADS_ID});if(p.available)price=p.price}catch(e){}}
+    if(!price){$("shopMsg").textContent="Remove Ads isn't available from the App Store yet. Please try again later.";refresh();return}
+    $("shopMsg").textContent="";
+    try{const r=await St.purchase({id:NOADS_ID});if(r.owned){store.noAds=true;save();$("shopMsg").textContent="Ads removed. Thank you for supporting Dragonfire.";haptic.success()}
+      else if(r.pending)$("shopMsg").textContent="Waiting for approval.";}
+    catch(e){$("shopMsg").textContent=e&&e.message?e.message:"The purchase didn't go through."}
+    refresh();
+  }
+  async function restore(){
+    if(!St)return;$("shopMsg").textContent="Checking…";
+    try{const r=await St.restore({id:NOADS_ID});store.noAds=r.owned;save();$("shopMsg").textContent=r.owned?"Restored. Ads are off.":"No earlier purchase found."}
+    catch(e){$("shopMsg").textContent="Couldn't reach the App Store."}
+    refresh();
+  }
+  function privacy(){Ad&&Ad.showPrivacyOptionsForm().catch(()=>{})}
+  return{start,refresh,between,rewarded,canReward:()=>native&&(noAds()?(store.freeDay!==new Date().toISOString().slice(0,10)||(store.freeCount||0)<3):rewardReady),buy,restore,privacy,native,mute:m=>{if(started)Ad.setApplicationMuted({muted:m}).catch(()=>{})}};
+})();
+
+// ---------- Game Center leaderboards (iPhone app only) ----------
+const LB={endless:"dragonfire.endless",chambers:"dragonfire.chambers",daily:"dragonfire.daily"};
+const gc=(()=>{const C=window.Capacitor,P=C&&C.isNativePlatform&&C.isNativePlatform()&&C.getPlatform&&C.getPlatform()==="ios"&&C.Plugins.GameCenter;let ok=false;
+  return{start(){if(P)P.auth().then(r=>{ok=!!r.authenticated}).catch(()=>{})},available:()=>ok,
+    submit(id,value){if(ok&&value>0)P.submit({id,score:Math.round(value)}).catch(()=>{})},
+    show(){if(ok)P.show({}).catch(()=>{})}}})();
+
+// ---------- sound: glassy, low, calm ----------
+const sound=(()=>{let ac,out,rev;
+  const S=[220,246.94,261.63,329.63,349.23,440,493.88,523.25,659.25,698.46,880,987.77,1046.5];
+  function wake(){if(ac||!store.sound)return;try{ac=new (window.AudioContext||window.webkitAudioContext)();out=ac.createGain();out.gain.value=.8;out.connect(ac.destination);
+    rev=ac.createDelay();rev.delayTime.value=.23;const fb=ac.createGain();fb.gain.value=.38;const wet=ac.createGain();wet.gain.value=.3;rev.connect(fb);fb.connect(rev);rev.connect(wet);wet.connect(out)}catch(e){ac=null}}
+  function tone(f,d=.8,v=.1,type="sine",w=0){if(!ac||!store.sound)return;const t=ac.currentTime+w,o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(out);g.connect(rev);o.start(t);o.stop(t+d+.05)}
+  return{wake,    state(){return ac?ac.state:"not started"},test(){tone(523.25,.9,.12,"sine")},unlock(){try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}wake();const A=ac;try{if(!window.__sil){const a=document.createElement("audio");a.src=SIL;a.loop=true;a.setAttribute("playsinline","");a.setAttribute("x-webkit-airplay","deny");a.preload="auto";const p=a.play();if(p&&p.catch)p.catch(()=>{window.__sil=null});window.__sil=a}else if(window.__sil.paused)window.__sil.play().catch(()=>{})}catch(e){}if(!A)return;try{if(A.state!=="running")A.resume();const b=A.createBuffer(1,1,22050),s=A.createBufferSource();s.buffer=b;s.connect(A.destination);s.start(0)}catch(e){}},
+
+    pick(){tone(660,.12,.04,"sine")},
+    place(n){tone(S[Math.min(4,n)]/2,.35,.12,"triangle");tone(S[Math.min(4,n)],.5,.04,"sine",.01)},
+    clear(lines,combo){const base=Math.min(combo-1,4);for(let i=0;i<2+lines*2;i++)tone(S[Math.min(S.length-1,base+i*2)],1.4,.07,"sine",i*.06);tone(110,1.2,.1,"triangle")},
+    breath(o){if(!ac||!store.sound)return;const t=ac.currentTime,len=1.6,b=ac.createBuffer(1,ac.sampleRate*len,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+      const src=ac.createBufferSource(),lp=ac.createBiquadFilter(),g=ac.createGain();src.buffer=b;lp.type="lowpass";lp.frequency.setValueAtTime(260+300*o,t);lp.frequency.linearRampToValueAtTime(160,t+len);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.025+.04*o,t+.9);g.gain.linearRampToValueAtTime(0,t+len);src.connect(lp);lp.connect(g);g.connect(out);src.start(t);src.stop(t+len);
+      },
+    shift(){[392,329.63,293.66,261.63,220].forEach((f,i)=>tone(f,1.8,.05,"sine",i*.12));tone(110,2.4,.06,"triangle")},
+    done(st){[0,2,4,6,7,9,11].slice(0,4+st).forEach((k,i)=>tone(S[k],2.2,.07,"sine",i*.12));tone(110,2.6,.08,"triangle")},
+    grind(){tone(185,.14,.05,"triangle");tone(92.5,.22,.05,"sine",.01)},
+    thunk(){tone(130.81,.12,.05,"triangle")},
+prism(){tone(1318.51,.35,.03,"sine");tone(659.25,.5,.035,"triangle",.01)},
+    flow(n){for(let i=0;i<Math.min(n,7);i++)tone(S[Math.min(S.length-1,2+i)],1.1,.045,"sine",i*.05)},
+    snap(w){const n=w.rows.length+w.cols.length;tone(n?880:1320,.05,.025,"sine");if(n)tone(1318.5,.18,.02,"sine",.02)},
+    pop(j,pure){tone(S[Math.min(S.length-1,3+j%9)]*(pure?2:1),.5,.035,"sine")},
+    tink(r){tone(1046.5+r*700,.25,.04,"triangle");tone(2093+r*900,.12,.012,"sine",.015)},
+    vein(){[0,2,4,6,8,10,12].forEach((k,i)=>tone(S[k],2,.06,"sine",.1+i*.07))},
+    end(){[440,349.23,293.66,220].forEach((f,i)=>tone(f,1.6,.07,"triangle",i*.18))}};
+})();
+
+
+// phones only allow audio once a tap has unlocked it; also ask iOS to play through the silent switch
+["pointerdown","touchend","click","keydown"].forEach(ev=>addEventListener(ev,()=>sound.unlock(),{capture:true,passive:true}));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)sound.unlock()});
+addEventListener("resize",layout);
+applySkin();layout();newGame();requestAnimationFrame(render);monet.start();dailyGift();gc.start();
+</script>

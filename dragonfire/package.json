@@ -1,0 +1,25 @@
+{
+  "name": "dragonfire",
+  "version": "1.0.0",
+  "description": "Dragonfire: a calm crystal-and-fire light puzzle with dragons.",
+  "scripts": {
+    "build": "node scripts/build-web.js",
+    "sync": "node scripts/build-web.js && npx cap sync ios"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor-community/admob": "^8.1.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/share": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2"
+  },
+  "private": true
+}

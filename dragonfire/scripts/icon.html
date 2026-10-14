@@ -1,0 +1,38 @@
+<!doctype html><canvas id=c width=1024 height=1024></canvas><script>
+const c=document.getElementById('c'),x=c.getContext('2d'),W=1024,C=512;
+// background: deep indigo night with a cool bloom where the fire turns
+let g=x.createRadialGradient(560,560,40,C,C,760);g.addColorStop(0,'#24203c');g.addColorStop(.5,'#0f0e1c');g.addColorStop(1,'#06060b');x.fillStyle=g;x.fillRect(0,0,W,W);
+// faint flagstone grid
+x.strokeStyle='rgba(200,180,255,.05)';x.lineWidth=3;for(let i=1;i<6;i++){x.beginPath();x.moveTo(i*W/6,0);x.lineTo(i*W/6,W);x.stroke();x.beginPath();x.moveTo(0,i*W/6);x.lineTo(W,i*W/6);x.stroke()}
+// the fire: in from the dragon on the left, turned upward by the crystal
+const turnX=600,turnY=640,beam=()=>{x.beginPath();x.moveTo(250,turnY);x.lineTo(turnX,turnY);x.lineTo(turnX,250)};
+x.save();x.globalCompositeOperation='lighter';x.lineCap='round';x.lineJoin='round';
+for(const[w,col,a,b]of[[150,'#9a5a12',.28,90],[70,'#f0b04a',.75,50],[26,'#fff3d6',1,20]]){x.shadowColor='#ff9a3c';x.shadowBlur=b;x.globalAlpha=a;x.strokeStyle=col;x.lineWidth=w;beam();x.stroke()}
+x.restore();
+// the gem the fire reaches, glowing
+const gx=turnX,gy=250,gs=120;
+x.save();x.shadowColor='#ffb84a';x.shadowBlur=140;
+x.beginPath();x.moveTo(gx,gy-gs);x.lineTo(gx+gs*.86,gy-gs*.3);x.lineTo(gx+gs*.62,gy+gs*.8);x.lineTo(gx-gs*.62,gy+gs*.8);x.lineTo(gx-gs*.86,gy-gs*.3);x.closePath();
+g=x.createLinearGradient(gx-gs,gy-gs,gx+gs,gy+gs);g.addColorStop(0,'#fff0c0');g.addColorStop(.45,'#f0b84a');g.addColorStop(1,'#8a4a10');x.fillStyle=g;x.fill();x.restore();
+x.strokeStyle='rgba(255,245,220,.7)';x.lineWidth=4;x.stroke();
+x.beginPath();x.moveTo(gx,gy-gs);x.lineTo(gx,gy-gs*.15);x.moveTo(gx-gs*.86,gy-gs*.3);x.lineTo(gx-gs*.35,gy-gs*.05);x.lineTo(gx+gs*.35,gy-gs*.05);x.lineTo(gx+gs*.86,gy-gs*.3);x.moveTo(gx-gs*.35,gy-gs*.05);x.lineTo(gx-gs*.62,gy+gs*.8);x.moveTo(gx+gs*.35,gy-gs*.05);x.lineTo(gx+gs*.62,gy+gs*.8);x.strokeStyle='rgba(255,245,220,.35)';x.lineWidth=3;x.stroke();
+// the crystal prism lying across the turn
+x.save();x.translate(turnX,turnY);x.rotate(-Math.PI/4);const L=190,w=46;
+x.beginPath();x.moveTo(-L,0);x.lineTo(-L+w,-w);x.lineTo(L-w,-w);x.lineTo(L,0);x.lineTo(L-w,w);x.lineTo(-L+w,w);x.closePath();
+g=x.createLinearGradient(0,-w,0,w);g.addColorStop(0,'#f4f8ff');g.addColorStop(.45,'#a8c0ea');g.addColorStop(.55,'#55658f');g.addColorStop(1,'#d2def6');
+x.shadowColor='rgba(170,200,255,.7)';x.shadowBlur=60;x.globalAlpha=.95;x.fillStyle=g;x.fill();x.shadowBlur=0;x.globalAlpha=1;x.strokeStyle='#fff';x.lineWidth=5;x.stroke();
+x.beginPath();x.moveTo(-L+w,0);x.lineTo(L-w,0);x.strokeStyle='rgba(255,255,255,.5)';x.lineWidth=4;x.stroke();x.restore();
+// flare where the fire meets the crystal
+g=x.createRadialGradient(turnX,turnY,0,turnX,turnY,120);g.addColorStop(0,'rgba(255,250,230,.95)');g.addColorStop(.3,'rgba(255,190,90,.5)');g.addColorStop(1,'rgba(255,150,60,0)');x.fillStyle=g;x.beginPath();x.arc(turnX,turnY,120,0,Math.PI*2);x.fill();
+// the dragon's head on the left, breathing the fire
+x.save();x.translate(170,turnY);const s=1.25;x.scale(s,s);
+[-1,1].forEach(k=>{x.beginPath();x.moveTo(-40,k*30);x.quadraticCurveTo(-100,k*80,-150,k*130);x.quadraticCurveTo(-95,k*60,-70,k*12);x.closePath();
+  const hg=x.createLinearGradient(-40,0,-150,k*130);hg.addColorStop(0,'#3a3330');hg.addColorStop(1,'#d8c08a');x.fillStyle=hg;x.fill()});
+x.beginPath();x.moveTo(80,0);x.bezierCurveTo(78,-14,60,-18,40,-22);x.bezierCurveTo(14,-28,-4,-48,-26,-52);x.lineTo(-40,-64);x.lineTo(-46,-46);x.bezierCurveTo(-64,-42,-78,-34,-86,-26);x.lineTo(-86,26);x.bezierCurveTo(-78,34,-64,42,-46,46);x.lineTo(-40,64);x.lineTo(-26,52);x.bezierCurveTo(-4,48,14,28,40,22);x.bezierCurveTo(60,18,78,14,80,0);x.closePath();
+g=x.createRadialGradient(10,0,8,10,0,100);g.addColorStop(0,'#5a4c66');g.addColorStop(.6,'#2a2333');g.addColorStop(1,'#0d0b12');x.fillStyle=g;x.fill();x.strokeStyle='rgba(0,0,0,.9)';x.lineWidth=2;x.stroke();
+x.save();x.clip();x.strokeStyle='rgba(200,167,106,.22)';x.lineWidth=1.5;for(let i=-80;i<80;i+=10)for(let j=-50;j<=50;j+=10){x.beginPath();x.arc(i,j,5,Math.PI*.6,Math.PI*1.4);x.stroke()}x.restore();
+[-1,1].forEach(k=>{x.save();x.translate(-14,k*30);x.rotate(k*.25);x.beginPath();x.moveTo(-17,0);x.quadraticCurveTo(0,-9,17,0);x.quadraticCurveTo(0,9,-17,0);x.closePath();x.fillStyle='#ffb84a';x.shadowColor='#ffb84a';x.shadowBlur=24;x.fill();x.shadowBlur=0;x.fillStyle='#120606';x.beginPath();x.ellipse(0,0,2.5,7,0,0,Math.PI*2);x.fill();x.restore()});
+x.restore();
+// embers drifting up from the fire
+for(let i=0;i<30;i++){const ex=260+((i*97)%380),ey=turnY-30-((i*61)%330),r=2+(i%4)*1.5;x.fillStyle=`rgba(255,${170+(i*11)%70},80,${.3+(i%5)*.12})`;x.shadowColor='#ffae4a';x.shadowBlur=14;x.beginPath();x.arc(ex,ey,r,0,Math.PI*2);x.fill()}
+</script>

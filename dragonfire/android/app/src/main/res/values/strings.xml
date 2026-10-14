@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dragonfire</string>
+    <string name="title_activity_main">Dragonfire</string>
+    <string name="package_name">com.asylummke.dragonfire</string>
+    <string name="custom_url_scheme">com.asylummke.dragonfire</string>
+</resources>
