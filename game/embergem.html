@@ -171,17 +171,17 @@ function layout(){
 const tileAt=(x,y)=>tiles[y][x];
 const maskOf=t=>rotK(t.base,t.turns);
 // a random spanning tree grown from the heart; mixing depth-first and random growth gives winding veins with plenty of branches
-function genCavern(n,colors,r){
+function genCavern(n,colors,r,scr=.85,deep=.55){
   N=n;cell=U*8/N;heart=[Math.floor((n-1)/2),Math.floor(n/2)];
   const m=[...Array(n)].map(()=>Array(n).fill(0)),seen=new Set([heart+""]),open=[heart];
-  while(open.length){const idx=r()<.55?open.length-1:Math.floor(r()*open.length),[x,y]=open[idx];
+  while(open.length){const idx=r()<deep?open.length-1:Math.floor(r()*open.length),[x,y]=open[idx];
     const opts=[];DIRS.forEach(([dx,dy],i)=>{const a=x+dx,b=y+dy;if(a>=0&&b>=0&&a<n&&b<n&&!seen.has(a+","+b))opts.push([a,b,i])});
     if(!opts.length){open.splice(idx,1);continue}
     const[a,b,i]=opts[Math.floor(r()*opts.length)];m[y][x]|=1<<i;m[b][a]|=1<<((i+2)%4);seen.add(a+","+b);open.push([a,b])}
   tiles=m.map((row,y)=>row.map((base,x)=>{const isHeart=x===heart[0]&&y===heart[1];
     return{base,turns:0,shown:0,gem:!isHeart&&bits(base)===1?colors[Math.floor(r()*colors.length)]:-1,heart:isHeart}}));
   // scramble: most rocks start turned the wrong way
-  tiles.flat().forEach(t=>{const p=period(t.base);if(p>1&&r()<.85){t.turns=1+Math.floor(r()*(p-1));t.shown=t.turns}});
+  tiles.flat().forEach(t=>{const p=period(t.base);if(p>1&&r()<scr){t.turns=1+Math.floor(r()*(p-1));t.shown=t.turns}});
   par=tiles.flat().reduce((s,t)=>{const p=period(t.base);return s+(p-t.turns%p)%p},0);
   par+=Math.ceil(n/2);moves=0;hinted.clear();
   computeLit(true);
@@ -205,14 +205,17 @@ const todayKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 const dailyNo=()=>Math.floor((Date.parse(todayKey()+"T12:00:00")-Date.parse("2026-10-01T12:00:00"))/864e5)+1;
 const seeded=seed=>{let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}};
 let mode=['endless','daily'].includes(store.mode)?store.mode:'chambers';
-const sizeFor=l=>l<=2?4:l<=6?5:l<=14?6:7;
+// a gentle ramp: tiny caverns first, fewer rocks turned wrong, and long winding veins with few forks early on
+const sizeFor=l=>l<=2?3:l<=5?4:l<=10?5:l<=20?6:7;
+const scrambleFor=l=>l<=2?.45:l<=5?.6:l<=10?.75:.85;
+const windFor=l=>l<=5?.9:l<=10?.75:.55;
 function palette(k,r){return[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k)}
 function newGame(){
   over=false;aiming=false;particles=[];texts=[];flashes=[];litAt.clear();lit=new Set();$("veil").hidden=true;
   let r;
-  if(mode==="daily"){const d=dailyNo();r=seeded(d*2654435761);genCavern(6,palette(3,r),r)}
-  else if(mode==="endless"){r=Math.random;genCavern(6,palette(4,r),r)}
-  else{r=seeded(lvl*7919+3);genCavern(sizeFor(lvl),palette(lvl<3?2:lvl<8?3:4,r),r)}
+  if(mode==="daily"){const d=dailyNo();r=seeded(d*2654435761);genCavern(5,palette(3,r),r,.75,.75)}
+  else if(mode==="endless"){r=Math.random;genCavern(r()<.5?5:6,palette(4,r),r,.8,.7)}
+  else{r=seeded(lvl*7919+3);genCavern(sizeFor(lvl),palette(lvl<3?2:lvl<8?3:4,r),r,scrambleFor(lvl),windFor(lvl))}
   layout();renderGoals();updStat();
   $("foot").textContent=mode==="daily"?(store.daily&&store.daily[todayKey()]?"You already solved today's cavern. Replays don't change your result.":"Today's cavern is the same for everyone. Fewest turns wins."):
     mode==="endless"?"Endless caverns. No turn count, just the glow.":lvl===1&&!store.tutored?"Tap a rock to turn it. Join every gem to the dragon's heart.":"Turn the rocks so one ember vein joins the dragon's heart to every gem.";
