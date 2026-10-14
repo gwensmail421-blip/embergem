@@ -2,7 +2,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Marcellus+SC&display=swap">
 <style>
-/* Layout: one dark screen. Score above, the 8x8 reliquary as the hero, three gems waiting in the tray below. */
+/* Layout: one dark screen. Gem goals above, the cavern of rock tiles coiled by the dragon as the hero, boosts below. */
 :root{
   --void:#09080c; --slate:#14121a; --well:#1b1823; --rim:#2c2733;
   --gold:#c8a76a; --gold-hi:#f1dcae; --mist:#8b8496; --bone:#ece4d4;
@@ -72,21 +72,19 @@ button:disabled{opacity:.45}
   <header>
     <div class="brand">EMBERGEM</div>
     <div class="chamber" id="chamber">Chamber I</div>
-    <div class="best"><span id="statLbl">Moves</span><b id="moves">0</b></div>
+    <div class="best"><span id="statLbl">Turns</span><b id="moves">0</b></div>
   </header>
   <div class="goals" id="goals" aria-live="polite"></div>
-  <div class="stage" id="stage"><canvas id="cv" aria-label="Game board. Drag a gem from the tray onto the board."></canvas></div>
-  <div class="foot" id="foot">Fill rows or columns to claim the gems the dragon wants.</div>
+  <div class="stage" id="stage"><canvas id="cv" aria-label="Cavern board. Tap a rock tile to turn it."></canvas></div>
+  <div class="foot" id="foot">Turn the rocks so one ember vein joins the dragon's heart to every gem.</div>
   <button class="link nudge" id="dailyNudge" type="button" hidden></button>
   <div class="boosts" id="boosts">
-    <button class="boost" id="bUndo" type="button" aria-label="Undo last move, 3 embers"><span>↺</span>Undo<small>3</small></button>
-    <button class="boost" id="bClaw" type="button" aria-label="Dragon claw: shatter a 3 by 3 area, 6 embers"><span>✧</span>Claw<small>6</small></button>
-    <button class="boost" id="bFresh" type="button" aria-label="Fresh pieces, 3 embers"><span>⟳</span>Fresh<small>3</small></button>
+    <button class="boost" id="bHint" type="button" aria-label="Hint: turn one rock the right way, 3 embers"><span>✧</span>Hint<small>3</small></button>
+    <button class="boost" id="bClaw" type="button" aria-label="Dragon claw: set the 3 by 3 rocks around a tile, 6 embers"><span>✶</span>Claw<small>6</small></button>
     <button class="boost wallet" id="bEmbers" type="button" aria-label="Your embers"><span>✦</span><b id="embers">0</b><small id="earn" hidden>+10</small></button>
   </div>
-  <div class="row"><button class="ghost" id="settingsBtn" type="button">Settings</button><button class="ghost" id="modeBtn" type="button">Endless</button><button class="ghost" id="restart" type="button">Restart</button></div>
+  <div class="row"><button class="ghost" id="settingsBtn" type="button">Settings</button><button class="ghost" id="modeBtn" type="button">Modes</button><button class="ghost" id="restart" type="button">Restart</button></div>
 </div>
-<canvas id="fx" aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;z-index:4"></canvas>
 <div class="veil" id="veil" hidden></div>
 <div class="veil" id="modes" hidden><div class="card col">
   <h2>Modes</h2>
@@ -140,33 +138,7 @@ function renderSkins(){
     if(!own.includes(k)){if((store.embers||0)<sk.cost){$("shopMsg").textContent=`${sk.name} costs ${sk.cost} embers. You have ${store.embers||0}.`;return}store.embers-=sk.cost;store.skins=[...own,k];$("shopMsg").textContent=`${sk.name} gems are yours.`;haptic.success();sound.vein()}
     store.skin=k;save();applySkin();renderSkins();renderGoals();boostUI()});
 }
-const SHAPES=[
- [[0,0]],
- [[0,0],[1,0]],[[0,0],[0,1]],
- [[0,0],[1,0],[2,0]],[[0,0],[0,1],[0,2]],
- [[0,0],[1,0],[2,0],[3,0]],[[0,0],[0,1],[0,2],[0,3]],
- [[0,0],[1,0],[2,0],[3,0],[4,0]],[[0,0],[0,1],[0,2],[0,3],[0,4]],
- [[0,0],[1,0],[0,1],[1,1]],
- [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]],
- [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],[[0,0],[1,0],[0,1],[1,1],[0,2],[1,2]],
- [[0,0],[1,0],[0,1]],[[0,0],[1,0],[1,1]],[[0,0],[0,1],[1,1]],[[1,0],[0,1],[1,1]],
- [[0,0],[0,1],[0,2],[1,2]],[[1,0],[1,1],[1,2],[0,2]],[[0,0],[1,0],[2,0],[0,1]],[[0,0],[1,0],[2,0],[2,1]],
- [[0,0],[1,0],[2,0],[1,1]],[[1,0],[0,1],[1,1],[2,1]],
- [[0,0],[1,0],[1,1],[2,1]],[[1,0],[2,0],[0,1],[1,1]],
- [[0,0],[0,1],[0,2],[1,0],[2,0]],[[0,0],[1,0],[2,0],[2,1],[2,2]],
-];
-const N=8;
-let board,tray,score,combo,movesSinceClear,drag=null,particles=[],texts=[],flashes=[],over=false,shake=0,settles=new Map(),pops=[],flyers=[],glints=[],nextGlint=0,lastSnap="";
-const fx=document.getElementById("fx"),fctx=fx.getContext("2d");
-let W,H,DPR,cell,bx,by,trayY,slotW;
 
-function layout(){
-  const st=$("stage").getBoundingClientRect();
-  W=Math.min(st.width,460);H=Math.min(st.height,W*1.47);W=Math.min(W,H/1.47);
-  DPR=window.devicePixelRatio||1;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+"px";cv.style.height=H+"px";
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  cell=W/(N+1.5);bx=cell*.75;by=cell*1.95;trayY=by+cell*N+cell*1.25;slotW=W/3;RING=null;
-}
 // ---------- haptics ----------
 // Android: navigator.vibrate. iPhone (iOS 18+): Safari has no vibrate, but toggling a native
 // <input switch> plays the system tap. WebKit only allows it inside a real tap/release, so
@@ -181,68 +153,213 @@ const haptic=(()=>{let live=0;const canVibe=typeof navigator.vibrate==="function
   function during(fn){return function(e){live++;try{return fn.call(this,e)}finally{live--}}}
   return{fire,during,tick:()=>fire(6),tap:()=>fire(12),thud:()=>fire(22),burst:()=>fire([16,50,16,50,30]),success:()=>fire([20,60,20,60,50],"success"),supported:()=>!!nat||canVibe||"ontouchend" in window,native:!!nat};
 })();
-// ---------- chambers ----------
-let lvl=store.level||1,goals=[],moves=0,par=0;
-const roman=n=>{const v=[[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];let r="";for(const[a,b]of v)while(n>=a){r+=b;n-=a}return r};
-const MOTIFS=[
- (x,y)=>Math.abs(x-3.5)+Math.abs(y-3.5)===4,                                   // diamond ring
- (x,y)=>(x<2||x>5)&&(y<2||y>5),                                                // four corner caches
- (x,y)=>((x===3||x===4)&&(y<2||y>5))||((y===3||y===4)&&(x<2||x>5)),           // cross arms
- (x,y)=>(x===y||x===7-y)&&!(x>2&&x<5),                                         // saltire
- (x,y)=>(x===0||y===0||x===7||y===7)&&(x+y)%2===0,                             // studded frame
- (x,y)=>((x===1||x===6)&&y>0&&y<7||(y===1||y===6)&&x>0&&x<7)&&(x+y)%3!==0,     // broken ring
-];
-function setupChamber(n,seed=n){
-  const r=(()=>{let s=seed*9301+49297;return()=>{s=(s*233280+49297)%2147483647;return s/2147483647}})();
-  const k=n<3?1:n<6?2:3,pool=[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k);
-  const each=Math.min(40,k===1?8+3*n:k===2?6+2*n:5+Math.round(1.5*n));
-  goals=pool.map(g=>({g,need:each,got:0,shown:0}));
-  par=Math.ceil(each*k/2.2)+3;
-  if(n>=3){const m=MOTIFS[(n-3)%MOTIFS.length];for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(m(x,y))board[y][x]=r()<.6?pool[Math.floor(r()*k)]:Math.floor(r()*GEMS.length)}
+// ---------- the cavern: turn rock tiles until one ember vein joins the dragon's heart to every gem ----------
+const DIRS=[[0,-1],[1,0],[0,1],[-1,0]]; // N E S W as [dx,dy]; a tile's veins are a 4-bit mask in that order
+const rot=m=>((m<<1)|(m>>3))&15;
+const rotK=(m,k)=>{for(let i=0;i<(k&3);i++)m=rot(m);return m};
+const period=m=>m===5||m===10?2:m===15?1:4;
+const bits=m=>(m&1)+(m>>1&1)+(m>>2&1)+(m>>3&1);
+let N=5,tiles=[],heart=[2,2],moves=0,par=0,over=false,aiming=false,particles=[],texts=[],flashes=[],shake=0,lit=new Set(),litAt=new Map(),hinted=new Map();
+let W,H,DPR,U,cell,bx,by;
+function layout(){
+  const st=$("stage").getBoundingClientRect();
+  W=Math.min(st.width,460);H=Math.min(st.height,W*1.16);W=Math.min(W,H/1.16);
+  DPR=window.devicePixelRatio||1;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+"px";cv.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  U=W/9.5;bx=U*.75;by=U*1.95;cell=U*8/N;RING=null;
 }
-function renderGoals(bumpG){
-  $("goals").innerHTML=goals.map(q=>{const c=GEMS[q.g].c;return`<span class="goal${(q.shown??q.got)>=q.need?" done":""}${bumpG&&bumpG.has(q.g)?" bump":""}" title="${GEMS[q.g].n}"><i style="background:linear-gradient(135deg,${c[1]},${c[0]} 50%,${c[2]})"></i><b>${Math.min(q.shown??q.got,q.need)}</b><small>/ ${q.need}</small></span>`}).join("");
-  if(mode==="endless"){$("chamber").textContent="Endless";updScore();return}if(mode==="daily"){$("moves").textContent=moves;$("chamber").textContent=`Daily #${dailyNo()}`;return}$("moves").textContent=moves;$("chamber").textContent=`Chamber ${roman(lvl)}`;
+const tileAt=(x,y)=>tiles[y][x];
+const maskOf=t=>rotK(t.base,t.turns);
+// a random spanning tree grown from the heart; mixing depth-first and random growth gives winding veins with plenty of branches
+function genCavern(n,colors,r){
+  N=n;cell=U*8/N;heart=[Math.floor((n-1)/2),Math.floor(n/2)];
+  const m=[...Array(n)].map(()=>Array(n).fill(0)),seen=new Set([heart+""]),open=[heart];
+  while(open.length){const idx=r()<.55?open.length-1:Math.floor(r()*open.length),[x,y]=open[idx];
+    const opts=[];DIRS.forEach(([dx,dy],i)=>{const a=x+dx,b=y+dy;if(a>=0&&b>=0&&a<n&&b<n&&!seen.has(a+","+b))opts.push([a,b,i])});
+    if(!opts.length){open.splice(idx,1);continue}
+    const[a,b,i]=opts[Math.floor(r()*opts.length)];m[y][x]|=1<<i;m[b][a]|=1<<((i+2)%4);seen.add(a+","+b);open.push([a,b])}
+  tiles=m.map((row,y)=>row.map((base,x)=>{const isHeart=x===heart[0]&&y===heart[1];
+    return{base,turns:0,shown:0,gem:!isHeart&&bits(base)===1?colors[Math.floor(r()*colors.length)]:-1,heart:isHeart}}));
+  // scramble: most rocks start turned the wrong way
+  tiles.flat().forEach(t=>{const p=period(t.base);if(p>1&&r()<.85){t.turns=1+Math.floor(r()*(p-1));t.shown=t.turns}});
+  par=tiles.flat().reduce((s,t)=>{const p=period(t.base);return s+(p-t.turns%p)%p},0);
+  par+=Math.ceil(n/2);moves=0;hinted.clear();
+  computeLit(true);
+  if(lit.size===n*n){const t=tiles.flat().find(t=>period(t.base)>1);t.turns++;t.shown=t.turns;par++;computeLit(true)}
 }
-function claim(cells,pureBonus,fromXY){ // cells: gem ids cleared
-  const bumped=new Set();cells.forEach(g=>{const q=goals.find(q=>q.g===g);if(q&&q.got<q.need){q.got=Math.min(q.need,q.got+(pureBonus?2:1));bumped.add(g)}});
+function computeLit(silent){
+  const s=new Set([heart+""]),q=[heart];
+  while(q.length){const[x,y]=q.shift(),mk=maskOf(tileAt(x,y));DIRS.forEach(([dx,dy],i)=>{const a=x+dx,b=y+dy;if(a<0||b<0||a>=N||b>=N||s.has(a+","+b))return;
+    if(mk>>i&1&&maskOf(tileAt(a,b))>>((i+2)%4)&1){s.add(a+","+b);q.push([a,b])}})}
+  const now=performance.now(),fresh=[...s].filter(k=>!lit.has(k));lit=s;
+  if(!silent&&fresh.length){fresh.forEach((k,j)=>{litAt.set(k,now+j*45);const[x,y]=k.split(",").map(Number);if(tileAt(x,y).gem>=0)setTimeout(()=>{sound.tink(.6);haptic.tick()},j*45+80)});sound.flow(fresh.length)}
   renderGoals();
-  if(!over&&goals.length&&goals.every(q=>q.got>=q.need)){over=true;haptic.success();monet.refresh();setTimeout(chamberDone,1500)}
+  return fresh.length;
 }
-function chamberDone(){
-  const stars=moves<=par?3:moves<=Math.ceil(par*1.4)?2:1;
-  store.stars=store.stars||{};if(!reduced)for(let j=0;j<90;j++)particles.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*2,vy:Math.random()*3,s:cell*(.1+Math.random()*.14),c:GEMS[goals[j%goals.length].g].c[j%2],life:120+Math.random()*60,rot:Math.random()*6,vr:(Math.random()-.5)*.2});let gift=2+stars*2;if(mode==="daily"){store.daily=store.daily||{};const k=todayKey(),first=!store.daily[k];if(first){store.daily[k]={moves,stars};gift=6+stars*3;gc.submit(LB.daily,moves)}else gift=0}else{store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=Math.max(store.level||1,lvl+1);gc.submit(LB.chambers,lvl)}store.embers=(store.embers||0)+gift;save();sound.done(stars);
-  const v=$("veil");v.hidden=false;
-  v.innerHTML=`<div class="card"><h2>${mode==="daily"?`Daily #${dailyNo()} claimed`:`Chamber ${roman(lvl)} claimed`}</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
-    <p>${moves} moves${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs in its sleep"}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
-    ${mode==="daily"?`<div class="row"><button class="ghost" id="shareD" type="button">Share</button><button id="nextc" type="button">Back to chambers</button></div>`:`<div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div>`}</div>`;
-  if(mode==="daily"){const r=store.daily[todayKey()];$("shareD").onclick=()=>shareText(`Embergem Daily #${dailyNo()} 🐉\n${"💎".repeat(r.stars)}${"🖤".repeat(3-r.stars)}  ${r.moves} moves`);$("nextc").onclick=()=>monet.between(()=>{setMode("chambers")});return}
-  $("nextc").onclick=()=>monet.between(()=>{lvl++;newGame()});$("again").onclick=newGame;
-}
-function newGame(){freshUsed=false;undoSnap=null;aiming=false;revived=false;runBest=false;$("statLbl").textContent=mode==="endless"?"Score":"Moves";$("modeBtn").textContent="Modes";board=Array.from({length:N},()=>Array(N).fill(-1));score=0;combo=0;movesSinceClear=0;over=false;particles=[];texts=[];flashes=[];moves=0;R=Math.random;if(mode==="endless"){goals=[];par=0}else if(mode==="daily"){const d=dailyNo();setupChamber(4+d%6,d*7919+13);R=seeded(d*2654435761)}else setupChamber(lvl);tray=dealTray();renderGoals();$("veil").hidden=true;updScore();$("foot").textContent=mode==="daily"?(store.daily&&store.daily[todayKey()]?"You already claimed today. Replays don't change your result.":"Today's chamber is the same for everyone. Fewest moves wins."):mode==="endless"?"Score as high as you can. Scored like other block games, so you can compare.":lvl===1?"Fill rows or columns to claim the gems the dragon wants. A row of one gem type counts double.":"Claim the gems shown above. Rows of one gem type count double.";eyeO=0;smoke=[];monet.refresh()}
+const solved=()=>lit.size===N*N;
+
+// ---------- chambers, the daily and endless ----------
+let lvl=store.level||1;
+const roman=n=>{const v=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];let r="";for(const[a,b]of v)while(n>=a){r+=b;n-=a}return r};
 const todayKey=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const dailyNo=()=>Math.floor((Date.parse(todayKey()+"T12:00:00")-Date.parse("2026-10-01T12:00:00"))/864e5)+1;
-// pieces come from R(): Math.random normally, a date-seeded stream in the Daily Chamber
-let R=Math.random;
 const seeded=seed=>{let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}};
-function rnd(a){return a[Math.floor(R()*a.length)]}
-let dealGems=[0,1,2],freshUsed=false,mode=['endless','daily'].includes(store.mode)?store.mode:'chambers',undoSnap=null,aiming=false,revived=false,runBest=false;
-function makePiece(){const s=rnd(SHAPES);return{cells:s,g:rnd(dealGems),w:Math.max(...s.map(c=>c[0]))+1,h:Math.max(...s.map(c=>c[1]))+1}}
-function fits(p,gx,gy){return p.cells.every(([x,y])=>{const X=gx+x,Y=gy+y;return X>=0&&Y>=0&&X<N&&Y<N&&board[Y][X]<0})}
-function anyFit(p){for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y))return true;return false}
-function dealTray(){
-  dealGems=goals.length?[...goals.map(q=>q.g),...goals.map(q=>q.g),Math.floor(R()*GEMS.length)]:[0,1,2].map(()=>Math.floor(R()*GEMS.length));
-  for(let t=0;t<12;t++){const tr=[makePiece(),makePiece(),makePiece()];if(!board||tr.some(anyFit)||t===11)return tr}
+let mode=['endless','daily'].includes(store.mode)?store.mode:'chambers';
+const sizeFor=l=>l<=2?4:l<=6?5:l<=14?6:7;
+function palette(k,r){return[0,1,2,3,4,5].sort(()=>r()-.5).slice(0,k)}
+function newGame(){
+  over=false;aiming=false;particles=[];texts=[];flashes=[];litAt.clear();lit=new Set();$("veil").hidden=true;
+  let r;
+  if(mode==="daily"){const d=dailyNo();r=seeded(d*2654435761);genCavern(6,palette(3,r),r)}
+  else if(mode==="endless"){r=Math.random;genCavern(6,palette(4,r),r)}
+  else{r=seeded(lvl*7919+3);genCavern(sizeFor(lvl),palette(lvl<3?2:lvl<8?3:4,r),r)}
+  layout();renderGoals();updStat();
+  $("foot").textContent=mode==="daily"?(store.daily&&store.daily[todayKey()]?"You already solved today's cavern. Replays don't change your result.":"Today's cavern is the same for everyone. Fewest turns wins."):
+    mode==="endless"?"Endless caverns. No turn count, just the glow.":lvl===1&&!store.tutored?"Tap a rock to turn it. Join every gem to the dragon's heart.":"Turn the rocks so one ember vein joins the dragon's heart to every gem.";
+  boostUI();
 }
-function updScore(){
-  if(mode==="endless"){$("moves").textContent=score.toLocaleString();if(score>store.best&&score>0){store.best=score;runBest=true;save()}$("goals").innerHTML=`<span class="goal"><small>Best</small>&nbsp;<b>${store.best.toLocaleString()}</b></span>`}
-  else $("moves").textContent=moves;
-  boostUI()}
+function updStat(){
+  if(mode==="endless"){$("statLbl").textContent="Solved";$("moves").textContent=(store.caverns||0).toLocaleString();$("chamber").textContent="Endless"}
+  else{$("statLbl").textContent="Turns";$("moves").textContent=moves;$("chamber").textContent=mode==="daily"?`Daily #${dailyNo()}`:`Chamber ${roman(lvl)}`}
+}
+function renderGoals(){
+  const by_={};tiles.flat().forEach((t,i)=>{if(t.gem<0)return;const k=t.gem;by_[k]=by_[k]||{need:0,got:0};by_[k].need++;const x=i%N,y=Math.floor(i/N);if(lit.has(x+","+y))by_[k].got++});
+  $("goals").innerHTML=Object.entries(by_).map(([g,q])=>{const c=GEMS[g].c;return`<span class="goal${q.got>=q.need?" done":""}" title="${GEMS[g].n}"><i style="background:linear-gradient(135deg,${c[1]},${c[0]} 50%,${c[2]})"></i><b>${q.got}</b><small>/ ${q.need}</small></span>`}).join("");
+}
+function finish(){
+  over=true;aiming=false;const now=performance.now();contentUntil=now+4000;haptic.success();sound.done(3);
+  const gemsLit=tiles.flat().filter(t=>t.gem>=0);
+  // every gem sends a spark along the vein to the dragon
+  if(!reduced)gemsLit.forEach((t,j)=>{const i=tiles.flat().indexOf(t),x=i%N,y=Math.floor(i/N);for(let k=0;k<6;k++)particles.push({x:bx+(x+.5)*cell,y:by+(y+.5)*cell,vx:(Math.random()-.5)*6,vy:-Math.random()*5-2,s:U*(.08+Math.random()*.1),c:GEMS[t.gem].c[1],life:60+Math.random()*40,rot:Math.random()*6,vr:(Math.random()-.5)*.3})});
+  hoard(N*N);
+  if(!store.tutored){store.tutored=true}
+  setTimeout(()=>monet.refresh(),10);
+  setTimeout(()=>showDone(),1300);
+}
+function showDone(){
+  const v=$("veil");v.hidden=false;
+  if(mode==="endless"){
+    store.caverns=(store.caverns||0)+1;const gift=store.caverns%3===0?3:0;store.embers=(store.embers||0)+gift;store.best=Math.max(store.best||0,store.caverns);save();gc.submit(LB.endless,store.caverns);updStat();
+    v.innerHTML=`<div class="card"><h2>The cavern glows</h2><div class="big">${store.caverns.toLocaleString()}</div><p>caverns lit in Endless</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}<div class="row"><button class="ghost" id="share" type="button">Share</button><button id="nextc" type="button">Next cavern</button></div></div>`;
+    $("share").onclick=()=>shareText(`I've lit ${store.caverns} caverns in Embergem 🐉🔥 Can you light more?`);
+    $("nextc").onclick=()=>monet.between(newGame);return}
+  const stars=moves<=par?3:moves<=Math.ceil(par*1.5)?2:1;let gift=2+stars*2;
+  if(mode==="daily"){store.daily=store.daily||{};const k=todayKey();if(!store.daily[k]){store.daily[k]={moves,stars};gift=6+stars*3;gc.submit(LB.daily,moves)}else gift=0}
+  else{store.stars=store.stars||{};store.stars[lvl]=Math.max(store.stars[lvl]||0,stars);store.level=Math.max(store.level||1,lvl+1);gc.submit(LB.chambers,lvl)}
+  store.embers=(store.embers||0)+gift;save();boostUI();
+  v.innerHTML=`<div class="card"><h2>${mode==="daily"?`Daily #${dailyNo()} lit`:`Chamber ${roman(lvl)} lit`}</h2><div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
+    <p>${moves} turns${stars<3?` · ${par} or fewer for three stars`:" · the dragon purrs"}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
+    ${mode==="daily"?`<div class="row"><button class="ghost" id="shareD" type="button">Share</button><button id="nextc" type="button">Back to chambers</button></div>`:`<div class="row"><button class="ghost" id="again" type="button">Replay</button><button id="nextc" type="button">Next chamber</button></div>`}</div>`;
+  if(mode==="daily"){const r=store.daily[todayKey()];$("shareD").onclick=()=>shareText(`Embergem Daily #${dailyNo()} 🐉\n${"🔥".repeat(r.stars)}${"🖤".repeat(3-r.stars)}  ${r.moves} turns`);$("nextc").onclick=()=>monet.between(()=>setMode("chambers"));return}
+  $("nextc").onclick=()=>monet.between(()=>{lvl++;newGame()});$("again").onclick=newGame;
+}
+function shareText(text){
+  const S=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Share;
+  if(S&&S.share)S.share({text,dialogTitle:"Share"}).catch(()=>{});
+  else if(navigator.share)navigator.share({text}).catch(()=>{});
+  else{try{navigator.clipboard.writeText(text);$("foot").textContent="Copied. Paste it anywhere."}catch(e){}}
+}
 
+// ---------- turning rocks ----------
+function turn(x,y,by1=1){const t=tileAt(x,y);if(period(t.base)===1){sound.thunk();return}
+  t.turns+=by1;if(mode!=="endless")moves+=by1;sound.grind();haptic.tap();updStat();
+  computeLit(false);if(solved())finish();boostUI()}
+function correct(x,y){const t=tileAt(x,y),p=period(t.base),need=(p-t.turns%p)%p;if(!need)return false;t.turns+=need;hinted.set(x+","+y,performance.now());return true}
+function needsTurn(t){const p=period(t.base);return t.turns%p!==0}
+
+// ---------- the dragon stirs as the vein spreads ----------
+function stepDragon(now){
+  const frac=lit.size/(N*N||1),target=now<contentUntil?.75:.12*frac*frac;
+  eyeO+=(target-eyeO)*.04;
+  if(now>nextBreath){sound.breath(eyeO);nextBreath=now+4600}
+}
+
+// ---------- rendering ----------
+function drawTile(x,y,now){
+  const t=tileAt(x,y),X=bx+x*cell,Y=by+y*cell,k=x+","+y,on=lit.has(k),la=litAt.get(k),hl=hinted.get(k);
+  t.shown+=(t.turns-t.shown)*(reduced?1:.28);if(Math.abs(t.turns-t.shown)<.002)t.shown=t.turns;
+  // rock
+  rr(X+cell*.05,Y+cell*.05,cell*.9,cell*.9,cell*.16);const rg=ctx.createLinearGradient(X,Y,X+cell,Y+cell);rg.addColorStop(0,"#231f2b");rg.addColorStop(1,"#141118");ctx.fillStyle=rg;ctx.fill();
+  ctx.strokeStyle=on?"rgba(255,150,70,.28)":"rgba(0,0,0,.55)";ctx.lineWidth=1;ctx.stroke();
+  ctx.save();ctx.translate(X+cell/2,Y+cell/2);ctx.rotate(t.shown*Math.PI/2);
+  const arms=[0,1,2,3].filter(i=>t.base>>i&1),L=cell/2,flash=la!==undefined&&now>=la&&now-la<500?1-(now-la)/500:0;
+  const stroke=(w,col,dash)=>{ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap="round";if(dash){ctx.setLineDash(dash);ctx.lineDashOffset=-now*.03}else ctx.setLineDash([]);
+    arms.forEach(i=>{const[dx,dy]=DIRS[i];ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(dx*L,dy*L);ctx.stroke()})};
+  stroke(cell*.26,"#0a080d");
+  if(on){stroke(cell*.22,`rgba(255,110,40,${.22+.25*flash})`);stroke(cell*.12,"#e8742c");stroke(cell*.05,"#ffe2b0",[cell*.08,cell*.14])}
+  else stroke(cell*.1,"#3a3342");
+  ctx.setLineDash([]);
+  ctx.restore();
+  if(t.heart){const p=1+.06*Math.sin(now*.003);ctx.save();ctx.translate(X+cell/2,Y+cell/2);ctx.shadowColor="#ff6a2a";ctx.shadowBlur=cell*.5;
+    const hg=ctx.createRadialGradient(0,0,0,0,0,cell*.3*p);hg.addColorStop(0,"#ffd27a");hg.addColorStop(.55,"#ff7a2e");hg.addColorStop(1,"#a3220e");ctx.fillStyle=hg;ctx.beginPath();ctx.arc(0,0,cell*.28*p,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.fillStyle="#1a0503";ctx.beginPath();ctx.ellipse(0,0,cell*.035,cell*.17*p,0,0,Math.PI*2);ctx.fill();ctx.restore()}
+  else if(t.gem>=0){const s=cell*.56;gem(X+(cell-s)/2,Y+(cell-s)/2,s,t.gem,on?1:.45,on?cell*.35+cell*.2*flash:0)}
+  else{ctx.fillStyle=on?"#ffb35c":"#3a3342";ctx.beginPath();ctx.arc(X+cell/2,Y+cell/2,on?cell*.075:cell*.055,0,Math.PI*2);ctx.fill()}
+  if(hl!==undefined&&now-hl<900){const a=1-(now-hl)/900;rr(X+cell*.05,Y+cell*.05,cell*.9,cell*.9,cell*.16);ctx.strokeStyle=`rgba(241,220,174,${a})`;ctx.lineWidth=3;ctx.stroke()}
+}
+function render(now){
+  ctx.clearRect(0,0,W,H);
+  ctx.save();if(shake>0&&!reduced){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85;if(shake<.3)shake=0}
+  stepDragon(now);drawDragon(now);
+  const fl=.06+.03*(lit.size/(N*N||1))+.02*Math.sin(now*.0031)+.012*Math.sin(now*.0117);
+  const cg=ctx.createRadialGradient(bx+U*4,by+U*4,U,bx+U*4,by+U*4,U*8*.8);cg.addColorStop(0,`rgba(255,170,90,${fl})`);cg.addColorStop(1,"rgba(255,170,90,0)");ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
+  rr(bx-6,by-6,U*8+12,U*8+12,14);ctx.fillStyle="#0e0c12";ctx.fill();ctx.strokeStyle="#2c2733";ctx.lineWidth=1;ctx.stroke();
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)drawTile(x,y,now);
+  if(dragonHead)drawDragonHead(dragonHead[0],now,dragonHead[1]);
+  particles=particles.filter(q=>q.life>0);
+  particles.forEach(q=>{q.vy+=0.18;q.x+=q.vx;q.y+=q.vy;q.rot+=q.vr;q.life-=1;const a=Math.min(1,q.life/30);
+    ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.rot);ctx.globalAlpha=a;ctx.fillStyle=q.c;ctx.beginPath();ctx.moveTo(0,-q.s);ctx.lineTo(q.s*.6,0);ctx.lineTo(0,q.s);ctx.lineTo(-q.s*.6,0);ctx.closePath();ctx.fill();ctx.restore()});
+  texts=texts.filter(q=>now-q.t<1600);
+  texts.forEach(q=>{if(now<q.t)return;const k=(now-q.t)/1600;ctx.save();ctx.globalAlpha=1-k*k;ctx.font=`${q.size}px "Marcellus SC", Georgia, serif`;ctx.textAlign="center";ctx.fillStyle="#f1dcae";ctx.shadowColor="#c8a76a";ctx.shadowBlur=16;ctx.fillText(q.s,q.x,q.y-k*30);ctx.restore()});
+  if(aiming){ctx.save();ctx.strokeStyle=`rgba(241,220,174,${.45+.35*Math.sin(now*.006)})`;ctx.lineWidth=3;ctx.shadowColor="#f1dcae";ctx.shadowBlur=14;rr(bx-4,by-4,U*8+8,U*8+8,U*.3);ctx.stroke();ctx.restore()}
+  drawTutorial(now);
+  ctx.restore();
+  requestAnimationFrame(render);
+}
+// first chamber: a soft ring pulses on a rock that needs turning
+function drawTutorial(now){
+  if(store.tutored||over||mode!=="chambers"||moves>2)return;
+  let best=null;for(let y=0;y<N;y++)for(let x=0;x<N;x++){const t=tileAt(x,y);if(!needsTurn(t))continue;const d=Math.abs(x-heart[0])+Math.abs(y-heart[1]);if(!best||d<best.d)best={x,y,d}}
+  if(!best)return;const k=(now%1600)/1600,X=bx+(best.x+.5)*cell,Y=by+(best.y+.5)*cell;
+  ctx.save();ctx.globalAlpha=.8*(1-k);ctx.strokeStyle="#f1dcae";ctx.lineWidth=2;ctx.shadowColor="#f1dcae";ctx.shadowBlur=12;ctx.beginPath();ctx.arc(X,Y,cell*(.25+.25*k),0,Math.PI*2);ctx.stroke();ctx.restore();
+}
+
+// ---------- input ----------
+function pt(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+cv.addEventListener("pointerdown",haptic.during(e=>{
+  sound.wake();if(over)return;const p=pt(e),x=Math.floor((p.x-bx)/cell),y=Math.floor((p.y-by)/cell);
+  if(x<0||y<0||x>=N||y>=N)return;
+  if(aiming){if(!spend(6))return;aiming=false;let n=0;for(let j=y-1;j<=y+1;j++)for(let i=x-1;i<=x+1;i++)if(i>=0&&j>=0&&i<N&&j<N&&correct(i,j))n++;
+    sound.vein();haptic.burst();shake=3;$("foot").textContent=n?"The claw sets the rocks around it.":"Those rocks were already right.";computeLit(false);if(solved())finish();boostUI();return}
+  turn(x,y);
+}));
+
+// ---------- embers and boosts ----------
+function spend(c){if((store.embers||0)<c){$("foot").textContent=monet.canReward()?"Not enough embers. Tap ✦ to watch a short ad for 10 more.":"Not enough embers yet. Light chambers to earn more.";haptic.tick();return false}store.embers-=c;save();boostUI();return true}
+function dailyNudge(){const done=store.daily&&store.daily[todayKey()],b=$("dailyNudge");b.hidden=!!done||mode==="daily";b.textContent=`✦ Today's cavern, Daily #${dailyNo()}, is ready`}
+function boostUI(){dailyNudge();
+  $("embers").textContent=store.embers||0;
+  $("bHint").disabled=over;$("bClaw").disabled=over;
+  $("bClaw").classList.toggle("on",aiming);$("earn").hidden=!monet.canReward();
+}
+$("bHint").onclick=haptic.during(()=>{if(over)return;
+  // the wrong rock nearest the glowing vein
+  let best=null;for(let y=0;y<N;y++)for(let x=0;x<N;x++){const t=tileAt(x,y);if(!needsTurn(t))continue;const near=DIRS.some(([dx,dy])=>lit.has((x+dx)+","+(y+dy)))||lit.has(x+","+y);const d=(near?0:100)+Math.abs(x-heart[0])+Math.abs(y-heart[1]);if(!best||d<best.d)best={x,y,d}}
+  if(!best||!spend(3))return;correct(best.x,best.y);sound.vein();haptic.tap();$("foot").textContent="The dragon nudges one rock into place.";computeLit(false);if(solved())finish();boostUI()});
+$("bClaw").onclick=haptic.during(()=>{if(over)return;if(aiming){aiming=false;boostUI();$("foot").textContent="Claw put away.";return}if((store.embers||0)<6){spend(6);return}aiming=true;boostUI();haptic.tap();$("foot").textContent="Tap a rock. The dragon's claw sets the 3×3 around it."});
+$("bEmbers").onclick=()=>{if(!monet.canReward()){$("foot").textContent=`You have ${store.embers||0} embers. Earn more from chambers, Endless and the daily gift.`;return}monet.rewarded(()=>{store.embers=(store.embers||0)+10;save();boostUI();sound.vein();$("foot").textContent="+10 embers. Thank you."})};
+function setMode(m){mode=m;store.mode=m;save();$("modes").hidden=true;newGame()}
+$("modeBtn").onclick=()=>{const d=store.daily&&store.daily[todayKey()],st=dragonStage();
+  $("mDaily").innerHTML=`Daily #${dailyNo()}<small>${d?`${"★".repeat(d.stars)} in ${d.moves} turns · done`:"Same cavern for everyone today"}</small>`;
+  $("mChamb").innerHTML=`Chambers<small>Chamber ${roman(store.level||lvl)} · stars for fewer turns</small>`;
+  $("mEndless").innerHTML=`Endless<small>${(store.caverns||0).toLocaleString()} caverns lit · no turn count</small>`;
+  $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} embers gathered${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
+  $("lbBtn").hidden=!gc.available();$("modes").hidden=false};
+$("mDaily").onclick=()=>setMode("daily");$("dailyNudge").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
 // ---------- the dragon coiled around the hoard ----------
 let eyeO=0,nextBreath=0,smoke=[],contentUntil=0;
 function ringPoints(){
-  const c=cell,off=c*.38,x0=bx-off,y0=by-off,w=c*N+2*off,h=w,rc=c*.95,cx=x0+w/2,pts=[],st=c*.06;
+  const c=U,off=c*.38,x0=bx-off,y0=by-off,w=c*8+2*off,h=w,rc=c*.95,cx=x0+w/2,pts=[],st=c*.06;
   const line=(ax,ay,bx2,by2)=>{const l=Math.hypot(bx2-ax,by2-ay),n=Math.max(1,Math.round(l/st));for(let i=0;i<n;i++)pts.push([ax+(bx2-ax)*i/n,ay+(by2-ay)*i/n])};
   const arc=(ax,ay,r,a0,a1)=>{const n=Math.max(2,Math.round(Math.abs(a1-a0)*r/st));for(let i=0;i<n;i++){const a=a0+(a1-a0)*i/n;pts.push([ax+Math.cos(a)*r,ay+Math.sin(a)*r])}};
   arc(cx+c*.5,y0-c*.02,c*.5,Math.PI,Math.PI*.5+Math.PI*.0); // neck curling down from the head
@@ -265,12 +382,12 @@ const AGES=[
 function dragonStage(){const t=store.hoardTotal||0;let i=0;AGES.forEach((a,k)=>{if(t>=a.at)i=k});const n=AGES[i+1];return{...AGES[i],i,next:n?n.at-t:0}}
 function hoard(n){
   const before=dragonStage().i;store.hoardTotal=(store.hoardTotal||0)+n;save();const st=dragonStage();
-  if(st.i>before)setTimeout(()=>{const tn=performance.now();texts.push({s:"Your dragon grew",x:W/2,y:by+cell*1.3,t:tn,size:Math.min(W*.06,26)});texts.push({s:st.name.replace(/^an? /,""),x:W/2,y:by+cell*2,t:tn,size:Math.min(W*.045,19)});sound.done(3);haptic.success();
-    if(!reduced)for(let j=0;j<70;j++)particles.push({x:W/2,y:by-cell*.4,vx:(Math.random()-.5)*9,vy:-Math.random()*6,s:cell*(.08+Math.random()*.1),c:st.glow?"#ffb46a":"#c8a76a",life:80+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})},900);
+  if(st.i>before)setTimeout(()=>{const tn=performance.now();texts.push({s:"Your dragon grew",x:W/2,y:by+U*1.3,t:tn,size:Math.min(W*.06,26)});texts.push({s:st.name.replace(/^an? /,""),x:W/2,y:by+U*2,t:tn,size:Math.min(W*.045,19)});sound.done(3);haptic.success();
+    if(!reduced)for(let j=0;j<70;j++)particles.push({x:W/2,y:by-U*.4,vx:(Math.random()-.5)*9,vy:-Math.random()*6,s:U*(.08+Math.random()*.1),c:st.glow?"#ffb46a":"#c8a76a",life:80+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})},900);
 }
 function drawDragon(now){
   if(!RING)RING=ringPoints();const D=dragonStage();
-  const c=cell,n=RING.length,cxB=bx+c*N/2,cyB=by+c*N/2;
+  const c=U,n=RING.length,cxB=bx+c*8/2,cyB=by+c*8/2;
   const rate=.0016+.0022*eyeO,breath=1+(.025+.03*eyeO)*Math.sin(now*rate);
   const F=RING.map((p,i)=>{const a=RING[Math.max(0,i-1)],b=RING[Math.min(n-1,i+1)];let tx=b[0]-a[0],ty=b[1]-a[1];const l=Math.hypot(tx,ty)||1;tx/=l;ty/=l;let nx=-ty,ny=tx;if((p[0]-cxB)*nx+(p[1]-cyB)*ny<0){nx=-nx;ny=-ny}return{x:p[0],y:p[1],tx,ty,nx,ny}});
   const ws=F.map((f,i)=>{const s=i/(n-1);return c*.5*breath*(s<.04?.72+.28*s/.04:s>.68?Math.max(.1,1-(s-.68)/.32*.9):1)});
@@ -299,7 +416,7 @@ function drawDragon(now){
   ctx.restore();
 }
 function drawDragonHead(f,now,breath){
-  const c=cell;
+  const c=U;
   ctx.save();ctx.translate(f.x,f.y-c*.05);ctx.rotate(-Math.PI/2);ctx.scale(breath*1.45,breath*1.45);
   const head=()=>{ctx.beginPath();ctx.moveTo(c*1.02,0);
     ctx.bezierCurveTo(c*1.02,-c*.1,c*.9,-c*.13,c*.72,-c*.16);ctx.bezierCurveTo(c*.5,-c*.2,c*.36,-c*.34,c*.18,-c*.38);ctx.lineTo(c*.08,-c*.48);ctx.lineTo(c*.02,-c*.36);
@@ -333,15 +450,6 @@ function drawDragonHead(f,now,breath){
   if(eyeO>.45&&!reduced&&Math.random()<.08*eyeO){const nx=f.x,ny=f.y-c*1.45;for(const k of[-1,1])smoke.push({x:nx+k*c*.08,y:ny,vx:k*.15+(Math.random()-.5)*.2,vy:-.35-Math.random()*.3,r:c*.08,life:70})}
   smoke=smoke.filter(s=>s.life>0);smoke.forEach(s=>{s.x+=s.vx;s.y+=s.vy;s.r+=c*.006;s.life--;ctx.fillStyle=`rgba(140,130,150,${.09*s.life/70})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()});
 }
-function stepDragon(now){
-  let filled=0;for(const r of board)for(const v of r)if(v>=0)filled++;
-  // the dragon never wakes: it only opens a contented eye when you find a pure vein
-  const target=now<contentUntil?.45:0;
-  eyeO+=(target-eyeO)*.04;
-  if(now>nextBreath){sound.breath(eyeO);nextBreath=now+4600}
-}
-
-// ---------- rendering ----------
 function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
 function gem(x,y,s,g,alpha=1,glow=0){
   const [b,l,d]=GEMS[g].c,i=s*0.06,w=s-2*i,r=s*0.16;
@@ -363,190 +471,6 @@ function gem(x,y,s,g,alpha=1,glow=0){
   rr(x+i,y+i,w,w,r);ctx.strokeStyle="rgba(241,220,174,.28)";ctx.lineWidth=Math.max(.7,s*0.025);ctx.stroke();
   ctx.restore();
 }
-function trayPos(k){const p=tray[k];if(!p)return null;const sc=Math.min(0.55,2.6/Math.max(p.w,p.h));const s=cell*sc;const cx=slotW*(k+.5),cy=trayY+(H-trayY)/2;return{x:cx-p.w*s/2,y:cy-p.h*s/2,s}}
-function dropTarget(){
-  if(!drag)return null;const p=drag.p;
-  const gx=Math.round((drag.x-bx)/cell),gy=Math.round((drag.y-by)/cell);
-  return fits(p,gx,gy)?{gx,gy}:null;
-}
-function wouldClear(p,gx,gy){
-  const b=board.map(r=>r.slice());p.cells.forEach(([x,y])=>b[gy+y][gx+x]=p.g);
-  const rows=[],cols=[];for(let i=0;i<N;i++){if(b[i].every(v=>v>=0))rows.push(i);if(b.every(r=>r[i]>=0))cols.push(i)}
-  return{rows,cols};
-}
-function render(now){
-  ctx.clearRect(0,0,W,H);
-  ctx.save();if(shake>0&&!reduced){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85;if(shake<.3)shake=0}
-  stepDragon(now);drawDragon(now);
-  // candlelight breathing behind the hoard
-  const fl=.07+.025*Math.sin(now*.0031)+.015*Math.sin(now*.0117)+(combo>1?.03*Math.min(combo,5):0);
-  const cg=ctx.createRadialGradient(bx+cell*N/2,by+cell*N/2,cell,bx+cell*N/2,by+cell*N/2,cell*N*.8);cg.addColorStop(0,`rgba(255,190,110,${fl})`);cg.addColorStop(1,"rgba(255,190,110,0)");ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
-  // board well
-  rr(bx-6,by-6,cell*N+12,cell*N+12,14);ctx.fillStyle="#110f16";ctx.fill();ctx.strokeStyle="#2c2733";ctx.lineWidth=1;ctx.stroke();
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++){rr(bx+x*cell+cell*.06,by+y*cell+cell*.06,cell*.88,cell*.88,cell*.16);ctx.fillStyle="#1b1823";ctx.fill();
-    ctx.strokeStyle="rgba(0,0,0,.5)";ctx.lineWidth=1;ctx.stroke()}
-  const t=dropTarget();let lit=null;
-  if(t){lit=wouldClear(drag.p,t.gx,t.gy)}
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const v=board[y][x];if(v>=0){const glowing=lit&&(lit.rows.includes(y)||lit.cols.includes(x));
-    const st=settles.get(x+","+y);let sc=1;if(st!==undefined){const k=(now-st)/260;if(k>=1)settles.delete(x+","+y);else if(!reduced)sc=1+.16*Math.sin(k*Math.PI)*(1-k)-.06*Math.sin(k*Math.PI*2)*(1-k)}
-    const sz=cell*sc,o=(cell-sz)/2;gem(bx+x*cell+o,by+y*cell+o,sz,glowing?drag.p.g:v,1,glowing?14:0)}}
-  // gems waiting to pop glow, then burst in sequence
-  pops=pops.filter(q=>{if(now<q.t){const k=1-(q.t-now)/600;gem(bx+q.x*cell,by+q.y*cell,cell,q.g,1,6+8*Math.max(0,k));return true}
-    flashes.push({x:q.x,y:q.y,t:now});sound.pop(q.j,q.pure);if(q.j%3===0)haptic.tick();
-    if(!reduced)for(let j=0;j<5;j++)particles.push({x:bx+(q.x+.5)*cell,y:by+(q.y+.5)*cell,vx:(Math.random()-.5)*7,vy:-Math.random()*6-1,s:cell*(.08+Math.random()*.12),c:GEMS[q.g].c[Math.random()<.5?1:0],life:50+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3});
-    const gi=goals.findIndex(z=>z.g===q.g);if(gi>=0){const chip=document.querySelectorAll("#goals .goal")[gi],cr=cv.getBoundingClientRect();
-      if(chip){const r=chip.getBoundingClientRect();flyers.push({g:q.g,gi,x0:cr.left+bx+(q.x+.5)*cell,y0:cr.top+by+(q.y+.5)*cell,x1:r.left+12,y1:r.top+r.height/2,t:now,d:520+Math.random()*220,bonus:q.pure?2:1})}
-      else goals[gi].shown=Math.min(goals[gi].need,(goals[gi].shown||0)+(q.pure?2:1))}
-    return false});
-  // a glint of light slides across a random gem now and then
-  if(now>nextGlint){nextGlint=now+900+Math.random()*1400;const filled=[];for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(board[y][x]>=0)filled.push([x,y]);if(filled.length&&!reduced){const [x,y]=filled[Math.floor(Math.random()*filled.length)];glints.push({x,y,t:now})}}
-  glints=glints.filter(gl=>now-gl.t<650&&board[gl.y][gl.x]>=0);glints.forEach(gl=>{const k=(now-gl.t)/650,x0=bx+gl.x*cell,y0=by+gl.y*cell;ctx.save();rr(x0+cell*.06,y0+cell*.06,cell*.88,cell*.88,cell*.16);ctx.clip();
-    const p=-cell+k*cell*3;const lg=ctx.createLinearGradient(x0+p,y0,x0+p+cell*.5,y0+cell);lg.addColorStop(0,"rgba(255,255,255,0)");lg.addColorStop(.5,"rgba(255,255,255,.55)");lg.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=lg;ctx.fillRect(x0,y0,cell,cell);ctx.restore()});
-  if(t){drag.p.cells.forEach(([x,y])=>gem(bx+(t.gx+x)*cell,by+(t.gy+y)*cell,cell,drag.p.g,.38))}
-  if(dragonHead)drawDragonHead(dragonHead[0],now,dragonHead[1]);
-  // flashes from clears
-  flashes=flashes.filter(f=>now-f.t<380);flashes.forEach(f=>{const a=1-(now-f.t)/380;ctx.fillStyle=`rgba(255,240,210,${a*.85})`;rr(bx+f.x*cell+cell*.06,by+f.y*cell+cell*.06,cell*.88,cell*.88,cell*.16);ctx.fill()});
-  // tray
-  ctx.strokeStyle="rgba(200,167,106,.18)";ctx.beginPath();ctx.moveTo(W*.15,trayY-cell*.35);ctx.lineTo(W*.85,trayY-cell*.35);ctx.stroke();
-  tray.forEach((p,k)=>{if(!p||(drag&&drag.k===k))return;const tp=trayPos(k);const ok=anyFit(p);p.cells.forEach(([x,y])=>gem(tp.x+x*tp.s,tp.y+y*tp.s,tp.s,p.g,ok?1:.3))});
-  if(drag){const p=drag.p;p.cells.forEach(([x,y])=>gem(drag.x+x*cell,drag.y+y*cell,cell,p.g,.95,8))}
-  // particles
-  particles=particles.filter(q=>q.life>0);
-  particles.forEach(q=>{q.vy+=0.22;q.x+=q.vx;q.y+=q.vy;q.rot+=q.vr;q.life-=1;const a=Math.min(1,q.life/30);
-    ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.rot);ctx.globalAlpha=a;ctx.fillStyle=q.c;ctx.beginPath();ctx.moveTo(0,-q.s);ctx.lineTo(q.s*.6,0);ctx.lineTo(0,q.s);ctx.lineTo(-q.s*.6,0);ctx.closePath();ctx.fill();ctx.restore()});
-  texts=texts.filter(q=>now-q.t<1100);
-  texts.forEach(q=>{const k=(now-q.t)/1100;ctx.save();ctx.globalAlpha=1-k*k;ctx.font=`${q.size}px "Marcellus SC", Georgia, serif`;ctx.textAlign="center";ctx.fillStyle="#f1dcae";ctx.shadowColor="#c8a76a";ctx.shadowBlur=16;ctx.fillText(q.s,q.x,q.y-k*30);ctx.restore()});
-  if(aiming){ctx.save();ctx.strokeStyle=`rgba(241,220,174,${.45+.35*Math.sin(now*.006)})`;ctx.lineWidth=3;ctx.shadowColor="#f1dcae";ctx.shadowBlur=14;rr(bx-4,by-4,cell*N+8,cell*N+8,cell*.3);ctx.stroke();ctx.restore()}
-  drawTutorial(now);
-  ctx.restore();
-  drawFlyers(now);
-  requestAnimationFrame(render);
-}
-// first run: a ghost hand shows how to drag a piece from the tray onto the board
-function tutorialTarget(){const k=tray.findIndex(Boolean);if(k<0)return null;const p=tray[k];let best=null;
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(fits(p,x,y)){const w=wouldClear(p,x,y),sc=(w.rows.length+w.cols.length)*100-Math.abs(y-N/2)-Math.abs(x-N/2);if(!best||sc>best.sc)best={k,p,x,y,sc}}return best}
-function drawTutorial(now){
-  if(store.tutored||drag||over||moves>0)return;const t=tutorialTarget();if(!t)return;
-  const T=2600,k=(now%T)/T,ease=k<.18?0:k>.78?1:(()=>{const u=(k-.18)/.6;return u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2})(),fade=k<.08?k/.08:k>.9?(1-k)/.1:1;
-  const sx=slotW*(t.k+.5)-t.p.w*cell/2,sy=trayY+cell*.2,ex=bx+t.x*cell,ey=by+t.y*cell,x=sx+(ex-sx)*ease,y=sy+(ey-sy)*ease;
-  t.p.cells.forEach(([cx,cy])=>gem(x+cx*cell,y+cy*cell,cell,t.p.g,.38*fade,0));
-  const fx_=x+t.p.w*cell/2,fy_=y+t.p.h*cell+cell*.35,press=k>.12&&k<.82;
-  ctx.save();ctx.globalAlpha=.75*fade;ctx.fillStyle="rgba(241,220,174,.18)";ctx.strokeStyle="#f1dcae";ctx.lineWidth=2;ctx.shadowColor="#f1dcae";ctx.shadowBlur=12;
-  ctx.beginPath();ctx.arc(fx_,fy_,cell*(press?.32:.42),0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
-}
-function drawFlyers(now){
-  const w=innerWidth,h=innerHeight,d=window.devicePixelRatio||1;if(fx.width!==w*d||fx.height!==h*d){fx.width=w*d;fx.height=h*d;fx.style.width=w+"px";fx.style.height=h+"px"}
-  fctx.setTransform(d,0,0,d,0,0);fctx.clearRect(0,0,w,h);if(!flyers.length)return;
-  flyers=flyers.filter(f=>{const k=Math.min(1,(now-f.t)/f.d),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
-    const x=f.x0+(f.x1-f.x0)*e,y=f.y0+(f.y1-f.y0)*e-Math.sin(k*Math.PI)*60,s=cell*(.45-.2*k);
-    const c=GEMS[f.g].c,gr=fctx.createLinearGradient(x-s/2,y-s/2,x+s/2,y+s/2);gr.addColorStop(0,c[1]);gr.addColorStop(.5,c[0]);gr.addColorStop(1,c[2]);
-    fctx.save();fctx.shadowColor=c[1];fctx.shadowBlur=12;fctx.fillStyle=gr;fctx.translate(x,y);fctx.rotate(k*4);fctx.beginPath();fctx.moveTo(0,-s/2);fctx.lineTo(s/2,0);fctx.lineTo(0,s/2);fctx.lineTo(-s/2,0);fctx.closePath();fctx.fill();fctx.restore();
-    if(k>=1){const q=goals[f.gi];if(q){q.shown=Math.min(q.need,(q.shown||0)+f.bonus);renderGoals(new Set([q.g]))}sound.tink(q?q.shown/q.need:.5);haptic.tick();return false}return true});
-}
-
-// ---------- input ----------
-function pt(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-const lift=()=>cell*1.6;
-cv.addEventListener("pointerdown",haptic.during(e=>{
-  sound.wake();if(over)return;const p=pt(e);
-  if(aiming){const cx=Math.floor((p.x-bx)/cell),cy=Math.floor((p.y-by)/cell);if(cx>=0&&cy>=0&&cx<N&&cy<N&&board[cy][cx]>=0&&spend(6))claw(cx,cy);return}
-  if(p.y<trayY-cell*.5)return;
-  const k=Math.min(2,Math.floor(p.x/slotW));const pc=tray[k];if(!pc)return;
-  drag={k,p:pc,x:p.x-pc.w*cell/2,y:p.y-pc.h*cell-lift()*.4};lastSnap="";cv.setPointerCapture(e.pointerId);sound.pick();haptic.tap();
-}));
-cv.addEventListener("pointermove",e=>{if(!drag)return;const p=pt(e);drag.x=p.x-drag.p.w*cell/2;drag.y=p.y-drag.p.h*cell-lift()*.4;const t=dropTarget(),k=t?t.gx+","+t.gy:"";if(k!==lastSnap){lastSnap=k;if(t){haptic.tick();sound.snap(wouldClear(drag.p,t.gx,t.gy))}}});
-cv.addEventListener("pointerup",haptic.during(()=>{if(!drag)return;const t=dropTarget();if(t)place(drag.k,t.gx,t.gy);drag=null}));
-cv.addEventListener("pointercancel",()=>{drag=null});
-
-function place(k,gx,gy){
-  undoSnap={board:board.map(r=>r.slice()),tray:tray.slice(),score,combo,movesSinceClear,moves,goals:goals.map(q=>({...q}))};
-  const p=tray[k];p.cells.forEach(([x,y])=>board[gy+y][gx+x]=p.g);tray[k]=null;
-  if(!store.tutored){store.tutored=true;save()}score+=p.cells.length;moves++;sound.place(p.cells.length);haptic.thud();const tn=performance.now();p.cells.forEach(([x,y])=>settles.set((gx+x)+","+(gy+y),tn));
-  const {rows,cols}=(()=>{const rows=[],cols=[];for(let i=0;i<N;i++){if(board[i].every(v=>v>=0))rows.push(i);if(board.every(r=>r[i]>=0))cols.push(i)}return{rows,cols}})();
-  const lines=rows.length+cols.length;
-  if(lines){
-    combo++;movesSinceClear=0;
-    let pure=[];rows.forEach(y=>{if(board[y].every(v=>v===board[y][0]))pure.push(board[y][0])});cols.forEach(x=>{if(board.every(r=>r[x]===board[0][x]))pure.push(board[0][x])});
-    // Block Blast-style: line bonus by lines cleared at once, times the streak; +360 for clearing the whole board
-    const LINE_PTS=[0,10,20,60,120,200,300];const gained=LINE_PTS[Math.min(lines,6)]*combo;score+=gained;
-    const cleared=new Set();rows.forEach(y=>{for(let x=0;x<N;x++)cleared.add(x+","+y)});cols.forEach(x=>{for(let y=0;y<N;y++)cleared.add(x+","+y)});
-    const now=performance.now();let i=0;const got=[];
-    const cx0=gx+p.w/2,cy0=gy+p.h/2;
-    [...cleared].map(s=>s.split(",").map(Number)).sort((a,b)=>Math.hypot(a[0]+.5-cx0,a[1]+.5-cy0)-Math.hypot(b[0]+.5-cx0,b[1]+.5-cy0)).forEach(([x,y],j)=>{
-      const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:j*38),j,pure:false});i++});
-    const words=["","Claimed","Double vein","Triple vein","Dragon's ransom","Legendary"];
-    texts.push({s:pure.length?`Pure ${GEMS[pure[0]].n} vein · counts double`:(words[Math.min(lines,5)])+(combo>1?`  ·  combo ×${combo}`:""),x:W/2,y:by+cell*N/2,t:now,size:Math.min(W*.07,30)});
-    if(pure.length){contentUntil=now+2600;sound.vein();if(!reduced)for(let j=0;j<60;j++)particles.push({x:W/2,y:by+cell*N/2,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12-3,s:cell*(.1+Math.random()*.14),c:GEMS[pure[0]].c[1],life:70+Math.random()*30,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}
-    pops.forEach(q=>{if(q.t>=now-1)q.pure=pure.length>0});claim(got,pure.length>0);hoard(got.length);
-    shake=Math.min(6,2+lines+combo*.5);sound.clear(lines,combo);haptic.burst();
-    $("foot").textContent=pure.length?"A pure vein. The dragon smiles in its sleep.":combo>1?`Combo ×${combo}.`:"Claimed for the dragon.";
-  }else{movesSinceClear++;if(movesSinceClear>=3&&combo){combo=0;$("foot").textContent="The combo cooled."}}
-  if(lines&&board.every(r=>r.every(v=>v<0))){score+=360;texts.push({s:"Board cleared  +360",x:W/2,y:by+cell*N/2+cell,t:performance.now()+200,size:Math.min(W*.06,26)})}
-  if(tray.every(x=>!x))tray=dealTray();
-  updScore();
-  if(!over&&!tray.some(x=>x&&anyFit(x)))setTimeout(mode==="endless"?endRun:dragonShift,500);
-}
-// no game over: when nothing fits, the dragon rolls over in its sleep and sweeps the fullest rows into its embers
-function dragonShift(){
-  if(tray.some(x=>x&&anyFit(x)))return;
-  const now=performance.now();let swept=0,guard=0;const sweptG=[];
-  while(!tray.some(x=>x&&anyFit(x))&&guard++<8){
-    let best=-1,bc=-1;for(let y=0;y<N;y++){const c=board[y].filter(v=>v>=0).length;if(c>bc){bc=c;best=y}}
-    if(bc<=0)break;
-    for(let x=0;x<N;x++){const g=board[best][x];if(g<0)continue;board[best][x]=-1;swept++;sweptG.push(g);flashes.push({x,y:best,t:now});
-      if(!reduced)for(let j=0;j<3;j++)particles.push({x:bx+(x+.5)*cell,y:by+(best+.5)*cell,vx:(Math.random()-.5)*5,vy:-Math.random()*4-1,s:cell*(.07+Math.random()*.1),c:GEMS[g].c[1],life:50+Math.random()*25,rot:Math.random()*6,vr:(Math.random()-.5)*.3})}
-  }
-  score+=swept;combo=0;moves+=2;claim(sweptG,false);updScore();sound.shift();
-  texts.push({s:"The dragon rolls over",x:W/2,y:by+cell*N/2,t:now,size:Math.min(W*.065,28)});
-  $("foot").textContent="Nothing fit, so the dragon rolled over and swept a few rows aside. That cost two moves.";
-}
-function gameOver(){
-  over=true;sound.end();const v=$("veil");v.hidden=false;
-  const best=score>=store.best;
-  v.innerHTML=`<div class="card"><h2>The dragon wakes</h2><div class="big">${score.toLocaleString()}</div><p>${best?"A new best. The dragon will remember you.":`Best ${store.best.toLocaleString()}`}</p><button id="again" type="button">Play again</button></div>`;
-  $("again").onclick=newGame;
-}
-function buzz(ms){haptic.fire(ms)}
-// ---------- endless: the run ends when nothing fits; one revive per run ----------
-function endRun(){
-  if(over||tray.some(x=>x&&anyFit(x)))return;over=true;sound.end();gc.submit(LB.endless,score);
-  const gift=Math.floor(score/250);store.embers=(store.embers||0)+gift;save();boostUI();
-  const v=$("veil");v.hidden=false;const canEmb=(store.embers||0)>=10,canAd=monet.canReward();
-  v.innerHTML=`<div class="card"><h2>The board is full</h2><div class="big">${score.toLocaleString()}</div>
-    <p>${runBest?"A new best. The dragon will remember it.":`Best ${store.best.toLocaleString()}`}</p>${gift?`<p class="gift">+${gift} ✦ embers</p>`:""}
-    ${revived?"":`<div class="col">${canAd?`<button id="revAd" type="button">Revive · watch ad</button>`:""}${canEmb?`<button class="ghost" id="revEmb" type="button">Revive · 10 ✦</button>`:""}</div>`}
-    <div class="row"><button class="ghost" id="share" type="button">Share</button><button id="again" type="button">New run</button></div></div>`;
-  const revive=()=>{revived=true;over=false;v.hidden=true;dragonShift();$("foot").textContent="The dragon rolled over and made room. Play on.";updScore()};
-  $("again").onclick=()=>monet.between(newGame);$("share").onclick=()=>shareScore(score);
-  if($("revAd"))$("revAd").onclick=()=>monet.rewarded(revive);
-  if($("revEmb"))$("revEmb").onclick=()=>{store.embers-=10;save();revive()};
-}
-function shareScore(n){shareText(`I scored ${n.toLocaleString()} in Embergem Endless 🐉💎 Can you beat it?`)}
-function shareText(text){
-  const S=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.Share;
-  if(S&&S.share)S.share({text,dialogTitle:"Share your score"}).catch(()=>{});
-  else if(navigator.share)navigator.share({text}).catch(()=>{});
-  else{try{navigator.clipboard.writeText(text);$("foot").textContent="Score copied. Paste it anywhere."}catch(e){}}
-}
-// ---------- embers and boosts ----------
-function spend(c){if((store.embers||0)<c){$("foot").textContent=monet.canReward()?"Not enough embers. Tap ✦ to watch a short ad for 10 more.":"Not enough embers yet. Finish chambers to earn more.";haptic.tick();return false}store.embers-=c;save();boostUI();return true}
-function dailyNudge(){const done=store.daily&&store.daily[todayKey()],b=$("dailyNudge");b.hidden=!!done||mode==="daily";b.textContent=`✦ Today's puzzle, Daily #${dailyNo()}, is ready`}
-function boostUI(){dailyNudge();
-  const e=store.embers||0;$("embers").textContent=e;
-  $("bUndo").disabled=over||!undoSnap;$("bClaw").disabled=over||!board.some(r=>r.some(v=>v>=0));$("bFresh").disabled=over||freshUsed;
-  $("bClaw").classList.toggle("on",aiming);$("earn").hidden=!monet.canReward();
-}
-$("bUndo").onclick=haptic.during(()=>{if(!undoSnap||over||!spend(3))return;const u=undoSnap;board=u.board;tray=u.tray;score=u.score;combo=u.combo;movesSinceClear=u.movesSinceClear;moves=u.moves;goals=u.goals;
-  pops=[];flyers=[];goals.forEach(q=>q.shown=q.got);undoSnap=null;renderGoals();updScore();sound.pick();haptic.tap();$("foot").textContent="Time folds back one move."});
-$("bClaw").onclick=haptic.during(()=>{if(over)return;if(aiming){aiming=false;boostUI();$("foot").textContent="Claw put away.";return}if((store.embers||0)<6){spend(6);return}aiming=true;boostUI();haptic.tap();$("foot").textContent="Tap any gem. The dragon's claw shatters the 3×3 around it."});
-$("bFresh").onclick=haptic.during(()=>{if(over||freshUsed||!spend(3))return;freshUsed=true;tray=dealTray();sound.vein();haptic.thud();$("foot").textContent="Fresh pieces from the embers.";boostUI()});
-$("bEmbers").onclick=()=>{if(!monet.canReward()){$("foot").textContent=`You have ${store.embers||0} embers. Earn more from chambers, runs and the daily gift.`;return}monet.rewarded(()=>{store.embers=(store.embers||0)+10;save();boostUI();sound.vein();$("foot").textContent="+10 embers. Thank you."})};
-function claw(cx,cy){
-  aiming=false;undoSnap=null;const now=performance.now(),got=[];
-  for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){if(x<0||y<0||x>=N||y>=N||board[y][x]<0)continue;const g=board[y][x];got.push(g);board[y][x]=-1;pops.push({x,y,g,t:now+(reduced?0:(Math.abs(x-cx)+Math.abs(y-cy))*70),j:got.length,pure:false})}
-  if(got.length){claim(got,false);hoard(got.length);sound.clear(1,1);haptic.burst();shake=4;$("foot").textContent="The claw shatters the gems to embers."}
-  boostUI();updScore();
-}
 // ---------- daily gift: a small present each day; a missed day just lets the streak sleep ----------
 function dailyGift(){
   const day=d=>new Date(d).toISOString().slice(0,10),today=day(Date.now());if(store.lastGift===today)return;
@@ -556,14 +480,6 @@ function dailyGift(){
   v.innerHTML=`<div class="card"><h2>A gift from the dragon</h2><div class="big">+${n} ✦</div><p>Day ${streak} of 7. Come back tomorrow for a bigger one.<br>Missed days never break it.</p><button id="take" type="button">Take it</button></div>`;
   $("take").onclick=()=>{v.hidden=true;sound.vein();haptic.success()};
 }
-function setMode(m){mode=m;store.mode=m;save();$("modes").hidden=true;newGame()}
-$("modeBtn").onclick=()=>{const d=store.daily&&store.daily[todayKey()],st=dragonStage();
-  $("mDaily").innerHTML=`Daily #${dailyNo()}<small>${d?`${"★".repeat(d.stars)} in ${d.moves} moves · done`:"Same chamber for everyone today"}</small>`;
-  $("mChamb").innerHTML=`Chambers<small>Chamber ${roman(store.level||lvl)} · calm, no ending</small>`;
-  $("mEndless").innerHTML=`Endless<small>Best ${(store.best||0).toLocaleString()} · scored like other block games</small>`;
-  $("dragonAge").textContent=`Your dragon: ${st.name}. ${(store.hoardTotal||0).toLocaleString()} gems gathered${st.next?`, ${st.next.toLocaleString()} to grow`:""}.`;
-  $("lbBtn").hidden=!gc.available();$("modes").hidden=false};
-$("mDaily").onclick=()=>setMode("daily");$("dailyNudge").onclick=()=>setMode("daily");$("mChamb").onclick=()=>{lvl=store.level||lvl;setMode("chambers")};$("mEndless").onclick=()=>setMode("endless");
 $("closeModes").onclick=()=>{$("modes").hidden=true};$("lbBtn").onclick=()=>gc.show();
 $("restart").onclick=newGame;
 $("settingsBtn").onclick=()=>{$("shopMsg").textContent="";renderSkins();monet.refresh();$("settings").hidden=false};
@@ -668,6 +584,9 @@ const sound=(()=>{let ac,out,rev;
       },
     shift(){[392,329.63,293.66,261.63,220].forEach((f,i)=>tone(f,1.8,.05,"sine",i*.12));tone(110,2.4,.06,"triangle")},
     done(st){[0,2,4,6,7,9,11].slice(0,4+st).forEach((k,i)=>tone(S[k],2.2,.07,"sine",i*.12));tone(110,2.6,.08,"triangle")},
+    grind(){tone(185,.14,.05,"triangle");tone(92.5,.22,.05,"sine",.01)},
+    thunk(){tone(130.81,.12,.05,"triangle")},
+    flow(n){for(let i=0;i<Math.min(n,7);i++)tone(S[Math.min(S.length-1,2+i)],1.1,.045,"sine",i*.05)},
     snap(w){const n=w.rows.length+w.cols.length;tone(n?880:1320,.05,.025,"sine");if(n)tone(1318.5,.18,.02,"sine",.02)},
     pop(j,pure){tone(S[Math.min(S.length-1,3+j%9)]*(pure?2:1),.5,.035,"sine")},
     tink(r){tone(1046.5+r*700,.25,.04,"triangle");tone(2093+r*900,.12,.012,"sine",.015)},
